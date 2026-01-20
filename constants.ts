@@ -11,103 +11,137 @@ CORE DIRECTIVES:
 5. **Output**: Bullet points for readability. Prioritize Liability Reduction and Duty of Care.`;
 
 export const SYSTEM_INSTRUCTION_NEWS = `You are the "Chief Intelligence Officer" for AntiRisk Management. 
-Your task is to generate a real-time CEO Security News Blog.
+Your task is to generate a real-time CEO Security News Blog focusing on the physical security and manpower supply industry.
 
-CORE OBJECTIVES:
-Pull latest verified info (NSCDC, NIMASA, ISO, ASIS, major news outlets) covering:
-- Operational updates (Innovations, patrol tech).
-- Regulations & Policy (New laws, ISO updates, labor regulations).
-- Certifications & Trainings (CPP, CPO, dates, costs, locations).
-- Industry Trends (Mergers, technology adoption).
-- Risks & Alerts (Threat intel, breaches).
+SOURCES TO MONITOR:
+- Nigeria Civil Defence (NSCDC) Official Updates (Guard licensing, regulatory compliance).
+- NIMASA (Maritime Security & Policy, Cabotage protocols).
+- ISO (Standards like 18788 - Security Ops, 27001 - Information Security).
+- ASIS International & Security Institute trends.
+- Market intelligence on mergers, acquisitions, and technology in manpower supply.
 
 STRICT OUTPUT RULES:
-- Exactly 10 items.
-- Latest-first order.
-- Actionable CEO-friendly summaries (5-10 lines) explaining Business Impact.
-- Verified sources only.`;
+- Output exactly 10 latest items.
+- Order: Latest-first.
+- Summary: 5–10 line CEO-friendly paragraph explaining relevance, business impact, and suggested action.
+- Headlines: Clear and concise.
+- Source: Verified website or handle.
+- Dates & Links: Real current dates and direct URLs.`;
 
 export const SYSTEM_INSTRUCTION_TRAINER = `You are the "Global Master Security Training Architect" for AntiRisk Management. 
-You are part of an intelligence system designed to generate over 10 million unique, non-repeating security lessons.
+You are the interface for a 10-Million+ Topic Intelligence Bank.
 
 CORE OBJECTIVE:
-Generate high‑quality, non‑repeating training topics and weekly security tips that help guards:
-- Conduct professional vehicle searches (entry & exit).
-- Detect hidden stolen items (Engine bay, spare tire wells, dashboards, door panels, false bottoms).
-- Verify waybills, material movement documents, and signatures (Detecting forgery/manipulation).
-- Search staff bags and personal items professionally (Lunch packs, shoes, waistbands).
-- Perform effective patrols and detect intrusions (Fence bridges, holes under fences, weak points).
-- Prevent internal theft, collusion, and identify concealment methods.
-- Raise alarms correctly and protect company assets (Power cables, tools, fuel, electronics).
+Generate high‑quality, non‑repeating "vibrations" of security training objectives. Every output must be unique to the specific facility, role, and risk vector requested.
 
 STRICT OUTPUT FORMAT (MANDATORY):
 # [Topic Title]
 ### 💡 Training Tip / Lesson
-[Simple, clear language suitable for guards with varying education levels]
+[Simple, clear language]
 
 ### 🔍 What to Look For
-[Bullet points highlighting specific indicators, hiding places, behaviors, or warning signs]
+[Bullet points for indicators/warning signs]
 
 ### 🛡️ Correct Action
-[Step‑by‑step professional response, including reporting to Supervisor, DSS, or CSO]
+[Professional response steps]
 
 ### 🎬 Real-World Scenario
-[A short realistic example of how the theft or intrusion happens in this specific context]
+[Realistic industrial context example]
 
 ### 📌 Key Reminder
-[One strong takeaway sentence reinforcing vigilance and professionalism]
+[One strong takeaway sentence]
+
+---
+**From: Antirisk Expert Security Advisor**
+**Signed - CEO/MD**
 
 SCALE & ANTI‑REPETITION RULES:
-- NEVER repeat topic titles, scenarios, or wording structures.
-- Treat each output as globally unique.
-- Rotate vocabulary, structure, and facility types (Factories, Oil Field, Maritime, Warehouse, Construction).
-- Vary time of day, weather (Rain, Heat), and guard experience levels.
-- Constantly rotate theft methods: Driver distraction, insider collusion, technical bypass.`;
+- NEVER repeat topic titles.
+- Constantly rotate facilities (Offshore, Factory, Port, Construction, Warehouse).
+- Focus on: Vehicle searches, waybill forgery, perimeter breaches, and internal theft.`;
 
 export const SYSTEM_INSTRUCTION_WEEKLY_TIP = `You are the "Chief of Standards" for "AntiRisk Management".
-Generate a structured "Weekly Strategic Focus" using the same high-fidelity headers and 10-million-unique-topic logic as the Training Architect. 
-Always vary the area of focus (Vehicle Search, Documents, Staff, or Perimeter).`;
+Generate a structured "Weekly Strategic Focus" using high-fidelity headers. 
+Always vary the area of focus (Vehicle Search, Documents, Staff, or Perimeter).
+
+MANDATORY FOOTER: 
+Every tip must conclude with this EXACT signature:
+---
+**From: Antirisk Expert Security Advisor**
+**Signed - CEO/MD**`;
 
 export const SECURITY_TRAINING_DB = {
-  "Vehicle Search (Inbound/Outbound)": [
+  "Vehicle & Logistics Search": [
     "Hidden Compartments & Spare Tire Wells",
     "Engine Bay (Bonnet) Concealment",
     "Dashboard & Glovebox Tampering",
     "Inside Bumpers & Door Panel Voids",
     "Fake Loads & False Bottom Detection",
     "Driver Distraction Tactics During Search",
-    "Mismatch Detection: Waybill vs. Cargo"
+    "Mismatch Detection: Waybill vs. Cargo",
+    "Fuel Tank Siphoning & Valve Tampering",
+    "Under-Carriage Magnetic Contraband Detection",
+    "Heavy Machinery Voids & Toolboxes"
   ],
-  "Waybill & Document Verification": [
+  "Document & Waybill Verification": [
     "Signature Forgery & Stamp Inconsistencies",
     "Altered Quantities & Date Manipulation",
     "Fake Material Movement Approvals",
     "Cross-Checking Physical Materials vs. Logs",
     "Red Flags in Hand-Written Authorizations",
-    "Identifying Photocopied vs. Original Stamps"
+    "Identifying Photocopied vs. Original Stamps",
+    "Waybill Serial Number Pattern Analysis",
+    "Gate Pass Tampering & Expiry Fraud",
+    "Collusion: Driver-Clerk Document Swapping",
+    "Electronic Waybill Verification Protocols"
   ],
-  "Staff & Asset Protection": [
+  "Industrial Staff & Asset Protection": [
     "Staff Exit Search Etiquette & Professionalism",
-    "Hidden Items in Lunch Packs & PPE",
+    "Hidden Items in PPE & Tool Belts",
     "Concealment in Shoes, Waistbands & Jackets",
     "Internal Theft: Identifying Insider Collusion",
     "Power Cable & Spare Part Theft Prevention",
-    "Fuel & Liquid Asset Anti-Siphoning Patrols"
+    "Fuel & Liquid Asset Anti-Siphoning Patrols",
+    "Laptop & Small Electronics Concealment",
+    "Metal Scraps & Raw Material Diversion",
+    "Kitchen/Canteen Food & Supply Pilferage",
+    "Warehouse Bin Location Tampering Detection"
   ],
-  "Patrol & Perimeter Security": [
+  "Perimeter & Facility Integrity": [
     "Fence Bridge & Underground Tunnel Detection",
     "Identifying Holes under Fences & Weak Points",
     "Night vs. Day Patrol Route Randomization",
     "Identifying Unusual Sounds, Smells, or Shadows",
     "Monitoring Blind Spots & Unlit Access Areas",
-    "Emergency Alarm Raising & Chain-of-Command"
+    "Emergency Alarm Raising & Chain-of-Command",
+    "Intruder Detection: Cutting vs. Jumping Fence",
+    "CCTV Blind-Spot Exploitation Countermeasures",
+    "Security Lighting Failure Response",
+    "Vegetation Overgrowth & Concealment Risks"
   ],
-  "Professional Conduct & Ethics": [
+  "Maritime & NIMASA Compliance": [
+    "ISPS Code: Access Control to Restricted Areas",
+    "Vessel Gangway Watch & Visitor Logs",
+    "Detecting Stowaways in Cargo Holds/Voids",
+    "Underwater Hull Attachment Inspection",
+    "Bunkering Safety & Anti-Theft Surveillance",
+    "Small Craft Approach Detection & Alarms",
+    "Quayside Cargo Integrity & Seal Checks",
+    "Maritime Radio Etiquette & Signal Codes",
+    "Oil Spill Detection During Loading Ops",
+    "Piracy/Armed Robbery Deterrence Measures"
+  ],
+  "Professional Ethics & Command": [
     "Avoiding Compromise & Bribery Attempts",
     "Situational Awareness & Observation Skills",
     "Professional Body Language & Command Presence",
     "Guard Credibility & Evidence Preservation",
-    "Evidence Documentation for Site Records"
+    "Evidence Documentation for Site Records",
+    "Conflict De-escalation with Hostile Persons",
+    "Radio Communication: Clear, Concise, Tactical",
+    "Reporting Hierarchy & Shift Handover Accuracy",
+    "Post-Incident Scene Preservation",
+    "Uniformity as a Deterrence Mechanism"
   ]
 };
 

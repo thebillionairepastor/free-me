@@ -4,15 +4,16 @@ import { SYSTEM_INSTRUCTION_ADVISOR, SYSTEM_INSTRUCTION_TRAINER, SYSTEM_INSTRUCT
 import { ChatMessage, StoredReport, KnowledgeDocument, WeeklyTip, NewsItem } from "../types";
 
 /**
- * Real-time Security News Blog Service
+ * Real-time Security News Blog Service (CEO Focused)
  */
 export const fetchSecurityNews = async (): Promise<NewsItem[]> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
-    const prompt = `Generate the Latest CEO Security News Blog for Today. 
-    Focus on Nigeria Civil Defence (NSCDC) licensing, NIMASA maritime security updates, ISO 18788/ISO 27001 industrial standards, and professional certifications like CPP/CPO.
-    Ensure exactly 10 high-quality, verified items.
-    Use the Google Search tool to find real current dates and events.`;
+    const prompt = `Generate the Latest CEO Security News Blog for today.
+    Instructions:
+    1. Search for verified updates from Nigeria Civil Defence (NSCDC), NIMASA, ISO, and global security news.
+    2. Focus on physical security manpower supply business impact.
+    3. Return precisely 10 items in JSON format.`;
 
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
@@ -42,21 +43,24 @@ export const fetchSecurityNews = async (): Promise<NewsItem[]> => {
 
     return JSON.parse(response.text || "[]");
   } catch (error) {
-    console.error("News Fetch Error:", error);
+    console.error("News Intelligence Error:", error);
     throw error;
   }
 };
 
 /**
  * Deep Intelligence Search: Accesses the "10 Million Topic Bank"
+ * Instead of just filtering, this uses AI to "vibrate" the search query into specific sub-topics.
  */
 export const fetchTopicSuggestions = async (query: string): Promise<string[]> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
-    const prompt = `Act as the Master Index for the "AntiRisk Global 10-Million Security Training Data Bank".
+    const prompt = `Act as the "Master Neural Index" for the AntiRisk Global 10-Million Security Training Data Bank.
     Search query: "${query}"
-    Provide 8 specific, professional training module titles focusing on granular details like vehicle seat voids, waybill stamp analysis, or fence weak-points.
-    Ensure titles are globally unique and haven't been used.
+    
+    TASK: Provide 10 highly specific, non-repeating "vibrations" (variations) of this topic.
+    Focus on granular details like specific hiding spots in maritime vessels, industrial forgery markers, or night-time perimeter blindspots.
+    
     Return ONLY a JSON array of strings.`;
 
     const response: GenerateContentResponse = await ai.models.generateContent({
@@ -73,7 +77,7 @@ export const fetchTopicSuggestions = async (query: string): Promise<string[]> =>
 
     return JSON.parse(response.text || "[]");
   } catch (error) {
-    console.error("Deep Search Error:", error);
+    console.error("Deep Vault Search Error:", error);
     throw error;
   }
 };
@@ -84,24 +88,13 @@ export const fetchTopicSuggestions = async (query: string): Promise<string[]> =>
 export const generateTrainingModule = async (topic: string, week: number = 1, role: string = "All Roles"): Promise<{ text: string; sources?: Array<{ title: string; url: string }> }> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
-    // Inject massive variation factors
-    const environments = ["Industrial Warehouse", "Offshore Oil Rig", "Manufacturing Plant", "Commercial Loading Dock", "Maritime Port Terminal", "Construction Site"];
-    const weather = ["Heavy Rain", "Intense Heat", "Nightfall", "Early Dawn", "Dusty/Harmattan", "Clear Visibility"];
-    const riskLevel = ["Normal Operations", "High Holiday Alert", "Shift Change Rush", "Weekend Reduced Staffing"];
-    
-    const randomEnv = environments[Math.floor(Math.random() * environments.length)];
-    const randomWeather = weather[Math.floor(Math.random() * weather.length)];
-    const randomRisk = riskLevel[Math.floor(Math.random() * riskLevel.length)];
-
-    const prompt = `COMMAND: Generate a globally unique Training Module.
-    TOPIC: "${topic}"
+    const prompt = `COMMAND: Generate a globally unique "vibration" of the training objective: "${topic}".
     PROGRESSION: Week ${week}
     ROLE FOCUS: ${role}
-    FACILITY TYPE: ${randomEnv}
-    WEATHER/TIME: ${randomWeather}
-    RISK CONTEXT: ${randomRisk}
-
-    INSTRUCTION: Adhere strictly to the "STRICT OUTPUT FORMAT". Ensure content is world-class industrial standard but simple for guards.`;
+    
+    Ensure the module ends with the signature: 
+    "From: Antirisk Expert Security Advisor"
+    "Signed - CEO/MD"`;
 
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
@@ -133,17 +126,17 @@ export const generateTrainingModule = async (topic: string, week: number = 1, ro
 export const generateWeeklyTip = async (previousTips: WeeklyTip[]): Promise<string> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
-    // Force variation by picking a random focus area
-    const areas = ["Vehicle Search (Entry)", "Vehicle Search (Exit)", "Waybill Forgery", "Staff Bag Searches", "Fence Integrity", "Asset Theft Prevention"];
-    const randomFocus = areas[Math.floor(Math.random() * areas.length)];
-    
-    const prompt = `Generate a new, globally unique "Weekly Strategic Focus" tip focusing on: ${randomFocus}. Use industrial standards. Avoid repeating any common phrasing.`;
+    const prompt = `Generate a new "Weekly Strategic Focus" tip.
+    MANDATORY: End with the signature:
+    "From: Antirisk Expert Security Advisor"
+    "Signed - CEO/MD"`;
+
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: prompt,
       config: { systemInstruction: SYSTEM_INSTRUCTION_WEEKLY_TIP }
     });
-    return response.text || "Maintain maximum vigilance at all access points.";
+    return response.text || "Maintain maximum vigilance at all access points.\n\nFrom: Antirisk Expert Security Advisor\nSigned - CEO/MD";
   } catch (error) {
     console.error("Weekly Tip Error:", error);
     throw error;
@@ -158,22 +151,14 @@ export const generateAdvisorResponse = async (
 ): Promise<{ text: string; sources?: Array<{ title: string; url: string }> }> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
-    const kbContext = knowledgeBase.length > 0 
-      ? `INTERNAL KNOWLEDGE BASE:
-         ${knowledgeBase.map(doc => `--- DOCUMENT: ${doc.title} ---\n${doc.content}`).join('\n\n')}`
-      : "NO INTERNAL KNOWLEDGE BASE.";
-
     const conversationContext = history.map(h => `${h.role.toUpperCase()}: ${h.text}`).join('\n');
-    const fullPrompt = `${kbContext}\n\nPREVIOUS HISTORY:\n${conversationContext}\n\nUSER: ${currentMessage}`;
-
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
-      contents: fullPrompt,
+      contents: `PREVIOUS HISTORY:\n${conversationContext}\n\nUSER: ${currentMessage}`,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION_ADVISOR,
       }
     });
-
     return { text: response.text || "I couldn't generate a response." };
   } catch (error) {
     console.error("Advisor Error:", error);
@@ -187,15 +172,15 @@ export const fetchBestPractices = async (topic?: string): Promise<{ text: string
   try {
     const finalTopic = topic && topic.trim() !== "" 
       ? topic 
-      : "high-priority industrial security best practice for 2025.";
+      : "latest physical security industrial best practices, ISO standards updates, and NSCDC/NIMASA regulatory shifts for 2025/2026.";
 
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Intelligence brief on: "${finalTopic}". Focus on new theft trends and tactical countermeasures. CEO level briefing.`,
+      contents: `Perform a deep search on: "${finalTopic}". Focus on strategic business positioning and market risks.`,
       config: { tools: [{ googleSearch: {} }] },
     });
 
-    return { text: response.text || "No intelligence found." };
+    return { text: response.text || "No current intelligence found." };
   } catch (error) {
     console.error("Best Practices Error:", error);
     throw error;
@@ -209,7 +194,7 @@ export const getTrainingSuggestions = async (recentReports: StoredReport[]): Pro
     const context = recentReports.map(r => `- ${r.content}`).join('\n');
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Based on these industrial site incidents, suggest 3 highly specific training topics focusing on Waybills, Vehicle Checks, or Perimeter Integrity:\n${context}\nReturn strings separated by |||`,
+      contents: `Based on these incidents, suggest 3 highly specific training "vibrations" focusing on prevention:\n${context}\nReturn strings separated by |||`,
     });
     return (response.text || "").split('|||').map(t => t.trim());
   } catch (error) {
@@ -224,26 +209,11 @@ export const analyzeReport = async (reportText: string, previousReports: StoredR
   try {
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
-      contents: `Analyze this dispatch log for industrial security vulnerabilities, internal theft patterns, or document manipulation: ${reportText}`,
+      contents: `Analyze this dispatch log for industrial security vulnerabilities: ${reportText}`,
     });
     return response.text || "Analysis complete.";
   } catch (error) {
     console.error("Analysis Error:", error);
-    throw error;
-  }
-};
-
-// Patrol Optimization
-export const analyzePatrolEffectiveness = async (reports: StoredReport[], knowledgeBase: KnowledgeDocument[]): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  try {
-    const response: GenerateContentResponse = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
-      contents: "Evaluate patrol effectiveness based on site incidents and suggest randomization strategies to prevent 'watching the watcher' behavior. Focus on blind spots and theft-prone windows.",
-    });
-    return response.text || "Strategy pending.";
-  } catch (error) {
-    console.error("Patrol Analysis Error:", error);
     throw error;
   }
 };
