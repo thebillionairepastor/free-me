@@ -1,13 +1,12 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Menu, Send, Plus, Search, RefreshCw, Download, FileText, ChevronRight, ShieldAlert, BookOpen, Globe, Briefcase, Calendar, ChevronLeft, Save, Trash2, Check, Lightbulb, Printer, Settings as SettingsIcon, MessageCircle, Mail, X, Bell, Database, Upload, Pin, PinOff, BarChart2, Sparkles, Copy, Lock, ShieldCheck, Fingerprint, Eye, Paperclip, XCircle, Bookmark, BookmarkCheck, LayoutGrid, ListFilter, Wand2, Map, ExternalLink, Image as ImageIcon, Target, User, Phone, FileUp, Key, AlertTriangle, Eye as EyeIcon, CloudDownload, WifiOff, Newspaper } from 'lucide-react';
-import Navigation from './components/Navigation';
-import MarkdownRenderer from './components/MarkdownRenderer';
-import ShareButton from './components/ShareButton';
-import IncidentChart from './components/IncidentChart';
-import { View, ChatMessage, Template, SecurityRole, StoredReport, WeeklyTip, UserProfile, KnowledgeDocument, SavedTrend, StoredTrainingModule, NewsItem } from './types';
-import { STATIC_TEMPLATES, SECURITY_TRAINING_DB } from './constants';
-import { generateAdvisorResponse, generateTrainingModule, analyzeReport, fetchBestPractices, generateWeeklyTip, getTrainingSuggestions, fetchTopicSuggestions, fetchSecurityNews } from './services/geminiService';
+import Navigation from './components/Navigation.tsx';
+import MarkdownRenderer from './components/MarkdownRenderer.tsx';
+import ShareButton from './components/ShareButton.tsx';
+import IncidentChart from './components/IncidentChart.tsx';
+import { View, ChatMessage, Template, SecurityRole, StoredReport, WeeklyTip, UserProfile, KnowledgeDocument, SavedTrend, StoredTrainingModule, NewsItem } from './types.ts';
+import { STATIC_TEMPLATES, SECURITY_TRAINING_DB } from './constants.ts';
+import { generateAdvisorResponse, generateTrainingModule, analyzeReport, fetchBestPractices, generateWeeklyTip, getTrainingSuggestions, fetchTopicSuggestions, fetchSecurityNews } from './services/geminiService.ts';
 
 // --- Offline Storage Service (IndexedDB) ---
 const DB_NAME = 'AntiRiskOfflineVault';
