@@ -1,13 +1,24 @@
-
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 import { SYSTEM_INSTRUCTION_ADVISOR, SYSTEM_INSTRUCTION_TRAINER, SYSTEM_INSTRUCTION_WEEKLY_TIP, SYSTEM_INSTRUCTION_NEWS } from "../constants";
 import { ChatMessage, StoredReport, KnowledgeDocument, WeeklyTip, NewsItem } from "../types";
 
 /**
+ * Helper to initialize the AI client with the injected API Key.
+ * Re-initializing per call ensures we always use the latest state.
+ */
+const getAIClient = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey || apiKey === 'undefined' || apiKey === '') {
+    throw new Error("SEC-VAULT-403: API_KEY is missing from the production bundle. Check Netlify Environment Variables.");
+  }
+  return new GoogleGenAI({ apiKey });
+};
+
+/**
  * Real-time Security News Blog Service (CEO Focused)
  */
 export const fetchSecurityNews = async (): Promise<NewsItem[]> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAIClient();
   try {
     const prompt = `Generate the Latest CEO Security News Blog for today.
     Instructions:
@@ -41,7 +52,16 @@ export const fetchSecurityNews = async (): Promise<NewsItem[]> => {
       }
     });
 
-    return JSON.parse(response.text || "[]");
+    const items: NewsItem[] = JSON.parse(response.text || "[]");
+    
+    const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks
+      ?.filter((chunk: any) => chunk.web?.uri)
+      .map((chunk: any) => ({
+        title: chunk.web.title,
+        url: chunk.web.uri
+      })) || [];
+
+    return items.map(item => ({ ...item, sources }));
   } catch (error) {
     console.error("News Intelligence Error:", error);
     throw error;
@@ -50,17 +70,14 @@ export const fetchSecurityNews = async (): Promise<NewsItem[]> => {
 
 /**
  * Deep Intelligence Search: Accesses the "10 Million Topic Bank"
- * Instead of just filtering, this uses AI to "vibrate" the search query into specific sub-topics.
  */
 export const fetchTopicSuggestions = async (query: string): Promise<string[]> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAIClient();
   try {
     const prompt = `Act as the "Master Neural Index" for the AntiRisk Global 10-Million Security Training Data Bank.
     Search query: "${query}"
     
     TASK: Provide 10 highly specific, non-repeating "vibrations" (variations) of this topic.
-    Focus on granular details like specific hiding spots in maritime vessels, industrial forgery markers, or night-time perimeter blindspots.
-    
     Return ONLY a JSON array of strings.`;
 
     const response: GenerateContentResponse = await ai.models.generateContent({
@@ -86,7 +103,7 @@ export const fetchTopicSuggestions = async (query: string): Promise<string[]> =>
  * Training Module Generator
  */
 export const generateTrainingModule = async (topic: string, week: number = 1, role: string = "All Roles"): Promise<{ text: string; sources?: Array<{ title: string; url: string }> }> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAIClient();
   try {
     const prompt = `COMMAND: Generate a globally unique "vibration" of the training objective: "${topic}".
     PROGRESSION: Week ${week}
@@ -122,9 +139,8 @@ export const generateTrainingModule = async (topic: string, week: number = 1, ro
   }
 };
 
-// Weekly Tip
 export const generateWeeklyTip = async (previousTips: WeeklyTip[]): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAIClient();
   try {
     const prompt = `Generate a new "Weekly Strategic Focus" tip.
     MANDATORY: End with the signature:
@@ -143,13 +159,12 @@ export const generateWeeklyTip = async (previousTips: WeeklyTip[]): Promise<stri
   }
 };
 
-// Advisor Chat
 export const generateAdvisorResponse = async (
   history: ChatMessage[], 
   currentMessage: string,
   knowledgeBase: KnowledgeDocument[] = []
 ): Promise<{ text: string; sources?: Array<{ title: string; url: string }> }> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAIClient();
   try {
     const conversationContext = history.map(h => `${h.role.toUpperCase()}: ${h.text}`).join('\n');
     const response: GenerateContentResponse = await ai.models.generateContent({
@@ -157,39 +172,59 @@ export const generateAdvisorResponse = async (
       contents: `PREVIOUS HISTORY:\n${conversationContext}\n\nUSER: ${currentMessage}`,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION_ADVISOR,
+        tools: [{ googleSearch: {} }]
       }
     });
-    return { text: response.text || "I couldn't generate a response." };
+
+    const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks
+      ?.filter((chunk: any) => chunk.web?.uri)
+      .map((chunk: any) => ({
+        title: chunk.web.title,
+        url: chunk.web.uri
+      })) || [];
+
+    return { 
+      text: response.text || "I couldn't generate a response.",
+      sources: sources.length > 0 ? sources : undefined
+    };
   } catch (error) {
     console.error("Advisor Error:", error);
     throw error;
   }
 };
 
-// Best Practices / Global Trends
-export const fetchBestPractices = async (topic?: string): Promise<{ text: string }> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+export const fetchBestPractices = async (topic?: string): Promise<{ text: string; sources?: Array<{ title: string; url: string }> }> => {
+  const ai = getAIClient();
   try {
     const finalTopic = topic && topic.trim() !== "" 
       ? topic 
       : "latest physical security industrial best practices, ISO standards updates, and NSCDC/NIMASA regulatory shifts for 2025/2026.";
 
     const response: GenerateContentResponse = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       contents: `Perform a deep search on: "${finalTopic}". Focus on strategic business positioning and market risks.`,
       config: { tools: [{ googleSearch: {} }] },
     });
 
-    return { text: response.text || "No current intelligence found." };
+    const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks
+      ?.filter((chunk: any) => chunk.web?.uri)
+      .map((chunk: any) => ({
+        title: chunk.web.title,
+        url: chunk.web.uri
+      })) || [];
+
+    return { 
+      text: response.text || "No current intelligence found.",
+      sources: sources.length > 0 ? sources : undefined
+    };
   } catch (error) {
     console.error("Best Practices Error:", error);
     throw error;
   }
 };
 
-// Training suggestions based on incident history
 export const getTrainingSuggestions = async (recentReports: StoredReport[]): Promise<string[]> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAIClient();
   try {
     const context = recentReports.map(r => `- ${r.content}`).join('\n');
     const response: GenerateContentResponse = await ai.models.generateContent({
@@ -203,9 +238,8 @@ export const getTrainingSuggestions = async (recentReports: StoredReport[]): Pro
   }
 };
 
-// Report Analysis
 export const analyzeReport = async (reportText: string, previousReports: StoredReport[] = []): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAIClient();
   try {
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',

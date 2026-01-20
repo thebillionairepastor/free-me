@@ -1,4 +1,5 @@
 
+
 export enum View {
   DASHBOARD = 'DASHBOARD',
   ADVISOR = 'ADVISOR',
@@ -18,6 +19,7 @@ export interface NewsItem {
   summary: string;
   date: string;
   link: string;
+  sources?: Array<{ title: string; url: string }>;
 }
 
 export interface ChatMessage {

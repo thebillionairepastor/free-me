@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Menu, Send, Plus, Search, RefreshCw, Download, FileText, ChevronRight, ShieldAlert, BookOpen, Globe, Briefcase, Calendar, ChevronLeft, Save, Trash2, Check, Lightbulb, Printer, Settings as SettingsIcon, MessageCircle, Mail, X, Bell, Database, Upload, Pin, PinOff, BarChart2, Sparkles, Copy, Lock, ShieldCheck, Fingerprint, Eye, Paperclip, XCircle, Bookmark, BookmarkCheck, LayoutGrid, ListFilter, Wand2, Map, ExternalLink, Image as ImageIcon, Target, User, Phone, FileUp, Key, AlertTriangle, Eye as EyeIcon, CloudDownload, WifiOff, Newspaper } from 'lucide-react';
 import Navigation from './components/Navigation.tsx';
@@ -176,7 +177,7 @@ function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzerTab, setAnalyzerTab] = useState<'DAILY' | 'PATROL'>('DAILY');
   const [bpTopic, setBpTopic] = useState('');
-  const [bpContent, setBpContent] = useState<{ text: string } | null>(null);
+  const [bpContent, setBpContent] = useState<{ text: string; sources?: Array<{ title: string; url: string }> } | null>(null);
   const [isBpLoading, setIsBpLoading] = useState(false);
   const [isTipLoading, setIsTipLoading] = useState(false);
 
@@ -349,7 +350,7 @@ function App() {
     setIsAdvisorThinking(true);
     try {
       const response = await generateAdvisorResponse(messages, inputMessage, knowledgeBase);
-      const aiMsg: ChatMessage = { id: Date.now().toString() + 'ai', role: 'model', text: response.text, timestamp: Date.now(), isPinned: false };
+      const aiMsg: ChatMessage = { id: Date.now().toString() + 'ai', role: 'model', text: response.text, timestamp: Date.now(), isPinned: false, sources: response.sources };
       setMessages(prev => [...prev, aiMsg]);
     } catch (err) { handleError(err); } finally { setIsAdvisorThinking(false); }
   };
@@ -533,6 +534,18 @@ function App() {
               <ShareButton content={bpContent.text} title="Global Security Trend Brief" />
             </div>
             <MarkdownRenderer content={bpContent.text} />
+            {bpContent.sources && bpContent.sources.length > 0 && (
+              <div className="mt-8 pt-8 border-t border-slate-700/50">
+                <h4 className="text-sm font-bold text-slate-400 uppercase mb-4 tracking-wider">Intelligence Sources</h4>
+                <div className="flex flex-wrap gap-3">
+                  {bpContent.sources.map((src, i) => (
+                    <a key={i} href={src.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-4 py-2 rounded-xl border border-slate-700 transition-all">
+                      <ExternalLink size={14} /> {src.title}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-700 opacity-20 p-20 text-center gap-6">
@@ -697,7 +710,23 @@ function App() {
               )}
             </div>
             <div className="flex-1 p-8 overflow-y-auto bg-slate-900/10 scrollbar-hide">
-              {trainingContent ? <div className="space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-500"><MarkdownRenderer content={trainingContent} /></div> : <div className="h-full flex flex-col items-center justify-center text-slate-700 text-center max-w-sm mx-auto gap-6 opacity-30"><Target size={80} strokeWidth={1} /><p className="text-lg font-bold italic">Search the 10-Million Topic Vault for a specific vibration or select an industrial sector seed.</p></div>}
+              {trainingContent ? (
+                <div className="space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  <MarkdownRenderer content={trainingContent} />
+                  {trainingSources && trainingSources.length > 0 && (
+                    <div className="mt-8 pt-8 border-t border-slate-700/50">
+                      <h4 className="text-sm font-bold text-slate-400 uppercase mb-4 tracking-wider">Grounding Sources</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {trainingSources.map((src, i) => (
+                          <a key={i} href={src.url} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-lg border border-emerald-500/20 hover:bg-emerald-500/20 transition-all">
+                            {src.title}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : <div className="h-full flex flex-col items-center justify-center text-slate-700 text-center max-w-sm mx-auto gap-6 opacity-30"><Target size={80} strokeWidth={1} /><p className="text-lg font-bold italic">Search the 10-Million Topic Vault for a specific vibration or select an industrial sector seed.</p></div>}
             </div>
           </div>
         </div>
@@ -755,7 +784,22 @@ function App() {
                           </div>
                           <ShareButton content={`*${item.headline}*\nCategory: ${item.category}\nSource: ${item.source}\n\nSummary:\n${item.summary}\n\nDate: ${item.date}\nLink: ${item.link}`} title={item.headline} />
                         </div>
-                        <div className="bg-slate-900/40 border border-slate-800/60 p-6 rounded-2xl"><h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">CEO Intelligence Briefing</h4><p className="text-slate-300 leading-relaxed font-medium whitespace-pre-line">{item.summary}</p></div>
+                        <div className="bg-slate-900/40 border border-slate-800/60 p-6 rounded-2xl">
+                          <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">CEO Intelligence Briefing</h4>
+                          <p className="text-slate-300 leading-relaxed font-medium whitespace-pre-line">{item.summary}</p>
+                          {item.sources && item.sources.length > 0 && (
+                            <div className="mt-4 pt-4 border-t border-slate-800/40">
+                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Grounding Sources</p>
+                              <div className="flex flex-wrap gap-2">
+                                {item.sources.map((src, i) => (
+                                  <a key={i} href={src.url} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-blue-500/10 text-blue-400 px-2 py-1 rounded border border-blue-500/20 hover:bg-blue-500/20 transition-all">
+                                    {src.title}
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                         <div className="flex items-center justify-between pt-2"><span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Reported: {item.date}</span><a href={item.link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-400 hover:text-blue-300 font-bold text-sm border-b border-blue-400/30 pb-0.5">Read Direct Source <ExternalLink size={16} /></a></div>
                       </div>
                     </div>
@@ -774,10 +818,19 @@ function App() {
                  <>
                    <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
                      {messages.map(msg => (
-                       <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                       <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                          <div className={`group relative max-w-[85%] p-5 rounded-2xl ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-100 rounded-bl-none border border-slate-700'}`}>
                            {msg.role === 'model' && <button onClick={() => togglePinMessage(msg.id)} className={`absolute -right-10 top-2 p-2 rounded-lg transition-all opacity-0 group-hover:opacity-100 ${msg.isPinned ? 'text-yellow-400' : 'text-slate-600 hover:text-slate-400'}`}>{msg.isPinned ? <BookmarkCheck size={20} /> : <Bookmark size={20} />}</button>}
                            <MarkdownRenderer content={msg.text} />
+                           {msg.sources && msg.sources.length > 0 && (
+                             <div className="mt-4 pt-4 border-t border-slate-700/50 flex flex-wrap gap-2">
+                               {msg.sources.map((src, i) => (
+                                 <a key={i} href={src.url} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded border border-blue-500/30 flex items-center gap-1">
+                                   <ExternalLink size={10} /> {src.title}
+                                 </a>
+                               ))}
+                             </div>
+                           )}
                          </div>
                        </div>
                      ))}
