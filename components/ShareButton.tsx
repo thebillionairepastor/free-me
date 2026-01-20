@@ -10,9 +10,10 @@ interface ShareButtonProps {
   id?: string;
   topic?: string;
   onPrint?: () => void;
+  triggerClassName?: string;
 }
 
-const ShareButton: React.FC<ShareButtonProps> = ({ content, title, view, id, topic, onPrint }) => {
+const ShareButton: React.FC<ShareButtonProps> = ({ content, title, view, id, topic, onPrint, triggerClassName }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [copiedText, setCopiedText] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -66,13 +67,15 @@ const ShareButton: React.FC<ShareButtonProps> = ({ content, title, view, id, top
     }
   };
 
+  const defaultTriggerClasses = "flex items-center gap-2.5 bg-[#2563eb] hover:bg-blue-600 text-white px-5 py-2.5 rounded-xl transition-all font-bold text-sm shadow-lg shadow-blue-600/20 active:scale-95 z-10";
+
   return (
-    <div className="relative inline-block text-left" ref={dropdownRef}>
+    <div className={`relative inline-block text-left ${triggerClassName?.includes('w-full') ? 'w-full' : ''}`} ref={dropdownRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2.5 bg-[#2563eb] hover:bg-blue-600 text-white px-5 py-2.5 rounded-xl transition-all font-bold text-sm shadow-lg shadow-blue-600/20 active:scale-95 z-10"
+        className={triggerClassName || defaultTriggerClasses}
       >
-        <Share2 size={18} strokeWidth={2.5} />
+        <Share2 size={triggerClassName?.includes('text-lg') ? 22 : 18} strokeWidth={2.5} />
         Broadcast
       </button>
 
@@ -107,7 +110,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({ content, title, view, id, top
             >
               <div className="flex items-center gap-4">
                 <div className="w-5 h-5 flex items-center justify-center">
-                  <Link size={18} className="text-slate-500" strokeWidth={2} />
+                  <Link size={18} className="text-slate-400" strokeWidth={2} />
                 </div>
                 Copy Share Link
               </div>
@@ -119,7 +122,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({ content, title, view, id, top
               className="flex items-center w-full gap-4 px-4 py-3 text-left text-[14px] font-semibold text-slate-200 hover:bg-slate-800/60 hover:text-white transition-colors rounded-xl"
             >
               <div className="w-5 h-5 flex items-center justify-center">
-                <Printer size={18} className="text-slate-500" strokeWidth={2} />
+                <Printer size={18} className="text-slate-400" strokeWidth={2} />
               </div>
               Print Document
             </button>
@@ -130,7 +133,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({ content, title, view, id, top
             >
               <div className="flex items-center gap-4">
                 <div className="w-5 h-5 flex items-center justify-center">
-                  <Copy size={18} className="text-slate-500" strokeWidth={2} />
+                  <Copy size={18} className="text-slate-400" strokeWidth={2} />
                 </div>
                 Copy Plain Text
               </div>

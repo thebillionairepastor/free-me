@@ -85,6 +85,15 @@ function App() {
   const [showNewTipAlert, setShowNewTipAlert] = useState<WeeklyTip | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
 
+  // Deep Link Handling
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const view = params.get('view');
+    if (view && Object.values(View).includes(view as View)) {
+      setCurrentView(view as View);
+    }
+  }, []);
+
   // Offline Storage State
   const [offlineIds, setOfflineIds] = useState<Set<string>>(new Set());
   const [isOfflineMode, setIsOfflineMode] = useState(!navigator.onLine);
@@ -362,9 +371,6 @@ function App() {
     } catch (err) { handleError(err); } finally { setIsAnalyzing(false); }
   };
 
-  /**
-   * Recalculates patrol routes based on historical incident data.
-   */
   const handleAnalyzePatrols = async () => {
     if (storedReports.length === 0 || isOfflineMode) return;
     setApiError(null);
@@ -495,9 +501,6 @@ function App() {
     }
   };
 
-  /**
-   * Renders the Global Security Trends view.
-   */
   const renderBestPractices = () => (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
       <div className="bg-[#1b2537] p-10 rounded-[2.5rem] border border-slate-700/50 shadow-lg flex flex-col md:flex-row justify-between items-center gap-6">
@@ -543,9 +546,6 @@ function App() {
     </div>
   );
 
-  /**
-   * Renders the Operations Vault (Toolkit) view.
-   */
   const renderToolkit = () => {
     const allSops = [...STATIC_TEMPLATES, ...customSops];
     const filteredSops = allSops.filter(s => 
@@ -801,7 +801,16 @@ function App() {
         {showKbModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in"><div className="bg-[#1b2537] rounded-[3rem] border border-slate-700/50 p-10 w-full max-w-2xl shadow-2xl"><div className="flex justify-between items-center mb-10"><h2 className="text-3xl font-bold text-white">Policy Archives</h2><button onClick={() => setShowKbModal(false)} className="p-2 text-slate-500 hover:text-white"><X size={28}/></button></div><div className="space-y-6"><input value={newDocTitle} onChange={(e) => setNewDocTitle(e.target.value)} placeholder="Protocol Title..." className="w-full bg-slate-900/50 border border-slate-700/50 p-5 rounded-2xl outline-none text-white focus:border-blue-500 text-lg shadow-inner" /><textarea value={newDocContent} onChange={(e) => setNewDocContent(e.target.value)} placeholder="Paste policy text..." className="w-full bg-slate-900/50 border border-slate-700/50 p-6 rounded-2xl h-64 outline-none resize-none text-white focus:border-blue-500 text-lg shadow-inner" /><button onClick={handleAddKbDocument} className="w-full bg-emerald-600 hover:bg-emerald-700 py-5 rounded-2xl font-bold text-xl active:scale-95 transition-all shadow-lg">Sync to Core</button></div></div></div>}
         {showSopModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in"><div className="bg-[#1b2537] rounded-[3rem] border border-slate-700/50 p-10 w-full max-w-2xl shadow-2xl overflow-y-auto max-h-[95vh] scrollbar-hide"><div className="flex justify-between items-center mb-8"><h2 className="text-3xl font-bold text-white">Upload Deployment SOP</h2><button onClick={() => setShowSopModal(false)} className="p-2 text-slate-500 hover:text-white"><X size={28}/></button></div><div className="space-y-6"><div className="flex gap-4"><button onClick={() => fileInputRef.current?.click()} className="flex-1 flex flex-col items-center gap-3 p-8 border-2 border-dashed border-slate-700 rounded-3xl bg-slate-900/40 hover:border-blue-500/50 hover:bg-slate-800/40 transition-all text-slate-400 hover:text-blue-400 group"><FileUp size={40} className="group-hover:scale-110 transition-transform" /><span className="text-sm font-bold">Select PDF, TXT, or Markdown</span><input ref={fileInputRef} type="file" accept=".txt,.md" className="hidden" onChange={handleFileUpload} /></button></div><div className="space-y-4"><div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">SOP Title</label><input value={newSopTitle} onChange={(e) => setNewSopTitle(e.target.value)} placeholder="Title..." className="w-full bg-slate-900/50 border border-slate-700 rounded-2xl px-6 py-4 text-white focus:border-blue-500 shadow-inner" /></div><div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Description</label><input value={newSopDesc} onChange={(e) => setNewSopDesc(e.target.value)} placeholder="Summary..." className="w-full bg-slate-900/50 border border-slate-700 rounded-2xl px-6 py-4 text-white focus:border-blue-500 shadow-inner" /></div><div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Protocol Content</label><textarea value={newSopContent} onChange={(e) => setNewSopContent(e.target.value)} placeholder="Full content..." className="w-full bg-slate-900/50 border border-slate-700 p-6 rounded-2xl h-48 outline-none resize-none text-white focus:border-blue-500 shadow-inner" /></div></div><button onClick={handleAddCustomSop} disabled={!newSopTitle || !newSopContent} className="w-full bg-blue-600 hover:bg-blue-700 py-5 rounded-2xl font-bold text-xl active:scale-95 transition-all shadow-lg">Archive to Vault</button></div></div></div>}
         {showSettings && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in"><div className="bg-[#1b2537] rounded-[3rem] border border-slate-700/50 p-10 w-full max-w-xl shadow-2xl"><div className="flex justify-between items-center mb-8"><h2 className="text-2xl font-bold text-white">CEO Profile</h2><button onClick={() => setShowSettings(false)} className="p-2 text-slate-500 hover:text-white"><X size={28}/></button></div><div className="space-y-6"><div className="grid grid-cols-1 sm:grid-cols-2 gap-6"><div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Name</label><input value={userProfile.name} onChange={(e) => setUserProfile({...userProfile, name: e.target.value})} className="w-full bg-slate-900/50 border border-slate-700 rounded-2xl px-6 py-4 text-white focus:border-blue-500 transition-all font-medium shadow-inner" /></div><div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">WhatsApp</label><input value={userProfile.phoneNumber} onChange={(e) => setUserProfile({...userProfile, phoneNumber: e.target.value})} placeholder="+234..." className="w-full bg-slate-900/50 border border-slate-700 rounded-2xl px-6 py-4 text-white focus:border-blue-500 transition-all font-medium shadow-inner" /></div></div><div className="space-y-1"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Email</label><input value={userProfile.email} onChange={(e) => setUserProfile({...userProfile, email: e.target.value})} className="w-full bg-slate-900/50 border border-slate-700 rounded-2xl px-6 py-4 text-white focus:border-blue-500 transition-all font-medium shadow-inner" /></div><button onClick={() => { setShowSettings(false); alert('Profile Updated'); }} className="w-full bg-blue-600 hover:bg-blue-700 py-5 rounded-2xl font-bold text-lg active:scale-95 shadow-xl transition-all mt-4">Save Profile</button></div></div></div>}
-        {showNewTipAlert && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/95 backdrop-blur-md p-4 animate-in fade-in"><div className="bg-[#1b2537] rounded-[3.5rem] border border-yellow-500/30 w-full max-w-2xl shadow-[0_30px_100px_rgba(0,0,0,0.9)] overflow-hidden flex flex-col max-h-[90vh]"><div className="p-8 border-b border-slate-800/60 bg-slate-900/40 flex justify-between items-center"><div className="flex items-center gap-4"><div className="w-12 h-12 bg-yellow-500/10 rounded-2xl flex items-center justify-center"><Bell size={24} className="text-yellow-400 animate-pulse" /></div><div><h2 className="text-2xl font-bold text-white tracking-tight">Strategic Directive</h2><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Neural Vault Intelligence</p></div></div><button onClick={() => setShowNewTipAlert(null)} className="p-2 text-slate-500 hover:text-white transition-colors"><X size={24} /></button></div><div className="flex-1 overflow-y-auto p-10 scrollbar-hide bg-slate-900/10"><MarkdownRenderer content={showNewTipAlert.content} /></div><div className="p-8 border-t border-slate-800/60 bg-slate-900/40 flex gap-4"><button onClick={() => { setShowNewTipAlert(null); setCurrentView(View.WEEKLY_TIPS); }} className="flex-1 bg-slate-800 hover:bg-slate-700 py-4 rounded-2xl font-bold text-slate-200 transition-all flex items-center justify-center gap-3 border border-slate-700">Archive & Review</button><div className="flex-1"><ShareButton content={showNewTipAlert.content} title={showNewTipAlert.topic} onPrint={() => { setShowNewTipAlert(null); window.print(); }}/></div></div></div></div>}
+        {showNewTipAlert && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/95 backdrop-blur-md p-4 animate-in fade-in"><div className="bg-[#1b2537] rounded-[3.5rem] border border-yellow-500/30 w-full max-w-2xl shadow-[0_30px_100px_rgba(0,0,0,0.9)] overflow-hidden flex flex-col max-h-[90vh]"><div className="p-8 border-b border-slate-800/60 bg-slate-900/40 flex justify-between items-center"><div className="flex items-center gap-4"><div className="w-12 h-12 bg-yellow-500/10 rounded-2xl flex items-center justify-center"><Bell size={24} className="text-yellow-400 animate-pulse" /></div><div><h2 className="text-2xl font-bold text-white tracking-tight">Strategic Directive</h2><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Neural Vault Intelligence</p></div></div><button onClick={() => setShowNewTipAlert(null)} className="p-2 text-slate-500 hover:text-white transition-colors"><X size={24} /></button></div><div className="flex-1 overflow-y-auto p-10 scrollbar-hide bg-slate-900/10"><MarkdownRenderer content={showNewTipAlert.content} /></div><div className="p-8 border-t border-slate-800/60 bg-slate-900/40 flex gap-4"><button onClick={() => { setShowNewTipAlert(null); setCurrentView(View.WEEKLY_TIPS); }} className="flex-1 bg-slate-800 hover:bg-slate-700 py-4 rounded-2xl font-bold text-slate-200 transition-all flex items-center justify-center gap-3 border border-slate-700">Archive & Review</button><div className="flex-1">
+          <ShareButton 
+            content={showNewTipAlert.content} 
+            title={showNewTipAlert.topic} 
+            view={View.WEEKLY_TIPS}
+            id={showNewTipAlert.id}
+            triggerClassName="w-full flex items-center justify-center gap-3 bg-[#2563eb] hover:bg-blue-600 text-white py-4 rounded-2xl transition-all font-bold text-lg shadow-lg shadow-blue-600/20 active:scale-95 z-10"
+            onPrint={() => { setShowNewTipAlert(null); window.print(); }}
+          />
+        </div></div></div></div>}
       </main>
     </div>
   );
