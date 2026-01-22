@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Menu, Send, Plus, Search, RefreshCw, Download, FileText, ChevronRight, ShieldAlert, BookOpen, Globe, Briefcase, Calendar, ChevronLeft, Save, Trash2, Check, Lightbulb, Printer, Settings as SettingsIcon, MessageCircle, Mail, X, Bell, Database, Upload, Pin, PinOff, BarChart2, Sparkles, Copy, Lock, ShieldCheck, Fingerprint, Eye, Paperclip, XCircle, Bookmark, BookmarkCheck, LayoutGrid, ListFilter, Wand2, Map, ExternalLink, Image as ImageIcon, Target, User, Phone, FileUp, Key, AlertTriangle, Eye as EyeIcon, CloudDownload, WifiOff, Newspaper } from 'lucide-react';
+import { Menu, Send, Plus, Search, RefreshCw, Download, FileText, ChevronRight, ShieldAlert, BookOpen, Globe, Briefcase, Calendar, ChevronLeft, Save, Trash2, Check, Lightbulb, Printer, Settings as SettingsIcon, MessageCircle, Mail, X, Bell, Database, Upload, Pin, PinOff, BarChart2, Sparkles, Copy, Lock, ShieldCheck, Fingerprint, Eye, Paperclip, XCircle, Bookmark, BookmarkCheck, LayoutGrid, ListFilter, Wand2, Map, ExternalLink, ImageIcon, Target, User, Phone, FileUp, Key, AlertTriangle, EyeIcon, CloudDownload, WifiOff, Newspaper, History } from 'lucide-react';
 import Navigation from './components/Navigation.tsx';
 import MarkdownRenderer from './components/MarkdownRenderer.tsx';
 import ShareButton from './components/ShareButton.tsx';
@@ -157,6 +157,12 @@ function App() {
   const [trainingContent, setTrainingContent] = useState('');
   const [trainingSources, setTrainingSources] = useState<Array<{ title: string; url: string }> | undefined>(undefined);
   const [isTrainingLoading, setIsTrainingLoading] = useState(false);
+  
+  // Training View specific states
+  const [trainingViewMode, setTrainingViewMode] = useState<'GENERATE' | 'HISTORY'>('GENERATE');
+  const [trainingSuggestions, setTrainingSuggestions] = useState<string[]>([]);
+  const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
+  const [showTrainingSuggestions, setShowTrainingSuggestions] = useState(false);
 
   const [reportText, setReportText] = useState('');
   const [analysisResult, setAnalysisResult] = useState('');
@@ -181,6 +187,26 @@ function App() {
   useEffect(() => { localStorage.setItem('security_app_kb', JSON.stringify(knowledgeBase)); }, [knowledgeBase]);
   useEffect(() => { localStorage.setItem('security_app_training', JSON.stringify(savedTraining)); }, [savedTraining]);
   useEffect(() => { localStorage.setItem('security_app_custom_sops', JSON.stringify(customSops)); }, [customSops]);
+
+  // Handle Training Suggestions Debounce
+  useEffect(() => {
+    if (trainingTopic.trim().length < 3 || isOfflineMode || !showTrainingSuggestions) {
+      setTrainingSuggestions([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setIsFetchingSuggestions(true);
+      try {
+        const suggestions = await fetchTopicSuggestions(trainingTopic);
+        setTrainingSuggestions(suggestions);
+      } catch (err) {
+        console.error("Suggestion fetch failed", err);
+      } finally {
+        setIsFetchingSuggestions(false);
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [trainingTopic, isOfflineMode, showTrainingSuggestions]);
 
   useEffect(() => {
     if (appState === 'READY' && !isOfflineMode) {
@@ -276,7 +302,6 @@ function App() {
     } catch (err: any) { handleError(err); } finally { setIsAnalyzing(false); }
   };
 
-  // Fix: Implemented handleAnalyzePatrols to analyze historical logs for patrol optimization
   const handleAnalyzePatrols = async () => {
     if (storedReports.length === 0 || isOfflineMode) return;
     setApiError(null); setIsAnalyzing(true);
@@ -289,11 +314,27 @@ function App() {
   const handleGenerateTraining = async () => {
     if (!trainingTopic || isOfflineMode) return;
     setApiError(null); setIsTrainingLoading(true); setTrainingSources(undefined);
+    setShowTrainingSuggestions(false);
     try {
       const result = await generateTrainingModule(trainingTopic, trainingWeek, trainingRole);
       setTrainingContent(result.text);
       setTrainingSources(result.sources);
+      
+      // AUTO-SAVE to Local Intelligence Database
+      const newModule: StoredTrainingModule = {
+        id: Date.now().toString(),
+        timestamp: Date.now(),
+        topic: trainingTopic,
+        targetAudience: trainingRole,
+        content: result.text,
+        generatedDate: new Date().toLocaleDateString()
+      };
+      setSavedTraining(prev => [newModule, ...prev]);
     } catch (err: any) { handleError(err); } finally { setIsTrainingLoading(false); }
+  };
+
+  const handleDeleteTraining = (id: string) => {
+    setSavedTraining(prev => prev.filter(m => m.id !== id));
   };
 
   const handleFetchBP = async () => {
@@ -382,35 +423,165 @@ function App() {
   const renderTrainingView = () => (
     <div className="flex flex-col lg:grid lg:grid-cols-12 gap-6 h-full max-w-7xl mx-auto">
       <div className="lg:col-span-4 flex flex-col gap-6">
-        <div className="bg-[#1b2537] p-8 rounded-[2rem] border border-slate-700/50 shadow-lg">
+        <div className="bg-[#1b2537] p-8 rounded-[2rem] border border-slate-700/50 shadow-lg relative">
+          <div className="absolute -top-3 -right-3 bg-blue-600 text-[10px] font-black px-3 py-1.5 rounded-full shadow-lg z-10 border border-blue-400/30 animate-pulse uppercase tracking-widest">10M+ Bank</div>
           <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3"><BookOpen size={28} className="text-emerald-400" /> Training Vault</h2>
-          <div className="space-y-4">
-            <input value={trainingTopic} onChange={(e) => setTrainingTopic(e.target.value)} className="w-full bg-slate-900/50 border border-slate-700 rounded-2xl px-5 py-3.5 text-white outline-none" placeholder="Search Database..." />
-            <select value={trainingRole} onChange={(e) => setTrainingRole(e.target.value as SecurityRole)} className="w-full bg-slate-900/40 border border-slate-700 rounded-2xl px-4 py-2.5 text-xs font-bold text-slate-300">
-              <option value={SecurityRole.GUARD}>Guard</option>
-              <option value={SecurityRole.SUPERVISOR}>Supervisor</option>
-              <option value={SecurityRole.GEN_SUPERVISOR}>Director</option>
-            </select>
-            <button onClick={handleGenerateTraining} disabled={isTrainingLoading} className="w-full bg-blue-600 py-4 rounded-2xl font-bold text-white shadow-lg flex items-center justify-center gap-3">
-              {isTrainingLoading ? <RefreshCw className="animate-spin" size={20} /> : <Sparkles size={20} />}
-              Generate Brief
-            </button>
+          
+          <div className="flex gap-2 p-1 bg-slate-900/60 rounded-xl mb-6 border border-slate-800">
+            <button onClick={() => setTrainingViewMode('GENERATE')} className={`flex-1 py-2 rounded-lg font-bold text-xs transition-all ${trainingViewMode === 'GENERATE' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500'}`}>Generate</button>
+            <button onClick={() => setTrainingViewMode('HISTORY')} className={`flex-1 py-2 rounded-lg font-bold text-xs transition-all flex items-center justify-center gap-2 ${trainingViewMode === 'HISTORY' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500'}`}>Database {savedTraining.length > 0 && <span className="bg-slate-800/50 px-1.5 py-0.5 rounded text-[10px]">{savedTraining.length}</span>}</button>
           </div>
+
+          {trainingViewMode === 'GENERATE' ? (
+            <div className="space-y-4">
+              <div className="space-y-1 relative">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Deep Intelligence Search</label>
+                <div className="relative">
+                  <input 
+                    value={trainingTopic} 
+                    onChange={(e) => {
+                      setTrainingTopic(e.target.value);
+                      setShowTrainingSuggestions(true);
+                    }} 
+                    onFocus={() => setShowTrainingSuggestions(true)}
+                    className="w-full bg-slate-900/50 border border-slate-700 rounded-2xl px-5 py-3.5 text-white outline-none focus:border-blue-500 transition-all text-sm" 
+                    placeholder="Search 10-Million+ Topics..." 
+                  />
+                  {isFetchingSuggestions ? (
+                    <RefreshCw size={14} className="absolute right-4 top-4 text-blue-500 animate-spin" />
+                  ) : (
+                    <Search size={14} className="absolute right-4 top-4 text-slate-500" />
+                  )}
+                </div>
+                
+                {/* Auto-suggestions Dropdown */}
+                {showTrainingSuggestions && trainingSuggestions.length > 0 && (
+                  <div className="absolute top-[calc(100%+8px)] left-0 right-0 bg-[#0a1222] border border-slate-700 rounded-2xl shadow-2xl z-[50] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 ring-1 ring-blue-500/20">
+                    <div className="p-2 border-b border-slate-800 flex justify-between items-center bg-slate-900/40">
+                      <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest pl-2">Vibration Stream</span>
+                      <button onClick={() => setShowTrainingSuggestions(false)} className="text-slate-500 hover:text-white p-1"><X size={12}/></button>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto scrollbar-hide">
+                      {trainingSuggestions.map((suggestion, idx) => (
+                        <button 
+                          key={idx} 
+                          onClick={() => {
+                            setTrainingTopic(suggestion);
+                            setShowTrainingSuggestions(false);
+                          }}
+                          className="w-full text-left px-4 py-3 text-xs font-bold text-slate-300 hover:bg-blue-600/10 hover:text-blue-400 transition-colors flex items-center gap-3 border-b border-slate-800/40 last:border-0"
+                        >
+                          <Wand2 size={12} className="shrink-0 text-blue-500 opacity-60" />
+                          <span className="truncate">{suggestion}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Target Role</label>
+                  <select value={trainingRole} onChange={(e) => setTrainingRole(e.target.value as SecurityRole)} className="w-full bg-slate-900/40 border border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-300 focus:border-blue-500 outline-none">
+                    <option value={SecurityRole.GUARD}>Guard</option>
+                    <option value={SecurityRole.SUPERVISOR}>Supervisor</option>
+                    <option value={SecurityRole.GEN_SUPERVISOR}>Director</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Progression</label>
+                  <select value={trainingWeek} onChange={(e) => setTrainingWeek(parseInt(e.target.value))} className="w-full bg-slate-900/40 border border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-300 focus:border-blue-500 outline-none">
+                    <option value={1}>Week 1</option>
+                    <option value={2}>Week 2</option>
+                    <option value={3}>Week 3</option>
+                  </select>
+                </div>
+              </div>
+
+              <button 
+                onClick={handleGenerateTraining} 
+                disabled={isTrainingLoading || !trainingTopic} 
+                className="w-full bg-blue-600 py-4 rounded-2xl font-bold text-white shadow-lg flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
+              >
+                {isTrainingLoading ? <RefreshCw className="animate-spin" size={20} /> : <Sparkles size={20} />}
+                Audit Internet & Generate
+              </button>
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto space-y-3 max-h-[400px] scrollbar-hide pr-1">
+              {savedTraining.length > 0 ? (
+                savedTraining.map(module => (
+                  <div key={module.id} className="group p-4 bg-slate-900/40 border border-slate-800 rounded-2xl hover:border-blue-500/30 transition-all cursor-pointer flex justify-between items-center" onClick={() => setTrainingContent(module.content)}>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold text-slate-200 truncate pr-2">{module.topic}</h4>
+                      <div className="flex gap-2 mt-1">
+                        <span className="text-[9px] font-black text-slate-500 uppercase">{module.generatedDate}</span>
+                        <span className="text-[9px] font-black text-blue-500 uppercase">W{module.timestamp % 3 + 1}</span>
+                      </div>
+                    </div>
+                    <button onClick={(e) => { e.stopPropagation(); handleDeleteTraining(module.id); }} className="p-2 text-slate-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14}/></button>
+                  </div>
+                ))
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center py-20 opacity-20"><History size={48} /><p className="text-[10px] font-black uppercase mt-4">Database Empty</p></div>
+              )}
+            </div>
+          )}
         </div>
+
         <div className="bg-[#1b2537] rounded-[2rem] border border-slate-700/50 flex-1 flex flex-col overflow-hidden shadow-inner hidden lg:flex">
-          <div className="p-4 border-b border-slate-700/50 bg-slate-900/40 text-xs font-black text-slate-400 uppercase tracking-widest">Sectors</div>
+          <div className="p-4 border-b border-slate-700/50 bg-slate-900/40 text-xs font-black text-slate-400 uppercase tracking-widest">Global Sector Indices</div>
           <div className="flex-1 overflow-y-auto p-4 scrollbar-hide space-y-2">
             {Object.keys(SECURITY_TRAINING_DB).map(cat => (
-              <button key={cat} onClick={() => setTrainingTopic(cat)} className="w-full text-left p-3 rounded-xl bg-slate-800/20 text-sm font-bold text-slate-300 hover:bg-slate-800 transition-all border border-slate-700/30">{cat}</button>
+              <button key={cat} onClick={() => {
+                setTrainingTopic(cat);
+                setShowTrainingSuggestions(false);
+              }} className={`w-full text-left p-3 rounded-xl text-sm font-bold transition-all border ${trainingTopic === cat ? 'bg-blue-600/20 border-blue-500 text-blue-400' : 'bg-slate-800/20 text-slate-300 hover:bg-slate-800 border-slate-700/30'}`}>{cat}</button>
             ))}
           </div>
         </div>
       </div>
-      <div className="lg:col-span-8 flex flex-col gap-6 min-h-[400px]">
+
+      <div className="lg:col-span-8 flex flex-col gap-6 min-h-[500px]">
         <div className="bg-[#1b2537] rounded-[2rem] border border-slate-700/50 overflow-hidden flex flex-col flex-1 shadow-2xl">
-          <div className="p-6 bg-slate-900/40 border-b border-slate-700/50 flex justify-between items-center"><h3 className="font-bold text-white flex items-center gap-3"><ShieldCheck className="text-blue-400" /> Operational Brief</h3>{trainingContent && <ShareButton content={trainingContent} title={trainingTopic} />}</div>
+          <div className="p-6 bg-slate-900/40 border-b border-slate-700/50 flex justify-between items-center">
+            <h3 className="font-bold text-white flex items-center gap-3">
+              <ShieldCheck className="text-blue-400" /> 
+              {trainingContent ? 'Intelligence Brief Generated' : 'Waiting for Query'}
+            </h3>
+            {trainingContent && <ShareButton content={trainingContent} title={`${trainingTopic} - Strategic Brief`} />}
+          </div>
           <div className="flex-1 p-8 overflow-y-auto bg-slate-900/10 scrollbar-hide">
-            {trainingContent ? <MarkdownRenderer content={trainingContent} /> : <div className="h-full flex flex-col items-center justify-center opacity-30 italic text-center gap-6"><Target size={80} /><p className="text-lg">Audit the 10-Million+ Topic database to generate training.</p></div>}
+            {trainingContent ? (
+              <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+                <MarkdownRenderer content={trainingContent} />
+                {trainingSources && trainingSources.length > 0 && (
+                  <div className="mt-8 pt-8 border-t border-slate-800">
+                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Verified Grounding Sources</h4>
+                    <div className="flex flex-wrap gap-3">
+                      {trainingSources.map((source, idx) => (
+                        <a key={idx} href={source.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 rounded-lg text-[10px] font-bold text-blue-400 border border-slate-700 hover:border-blue-500 transition-all">
+                          <ExternalLink size={12} /> {source.title}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center opacity-30 italic text-center gap-8 py-20 max-w-sm mx-auto">
+                <div className="relative">
+                  <Database size={80} className="text-slate-400" />
+                  <div className="absolute -bottom-2 -right-2 bg-blue-600 p-2 rounded-xl shadow-lg animate-bounce"><Search size={24} className="text-white" /></div>
+                </div>
+                <p className="text-lg font-medium leading-relaxed">Search for any topic. If not in our core database, we will audit the global intelligence stream to generate a deep-dive training for you.</p>
+                <div className="flex gap-4">
+                  <span className="text-[10px] font-black text-slate-500 uppercase border border-slate-800 px-3 py-1.5 rounded-lg">10M+ Topics</span>
+                  <span className="text-[10px] font-black text-slate-500 uppercase border border-slate-800 px-3 py-1.5 rounded-lg">Real-time Grounding</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
