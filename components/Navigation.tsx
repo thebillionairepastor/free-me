@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { View } from '../types';
 import { LayoutDashboard, ShieldAlert, Globe, BookOpen, FileText, Briefcase, Lightbulb, Settings, X, User, Newspaper } from 'lucide-react';
@@ -33,16 +32,16 @@ const Navigation: React.FC<NavigationProps> = ({
 }) => {
   const navItems = [
     { id: View.DASHBOARD, label: 'Dashboard', icon: LayoutDashboard },
-    { id: View.NEWS_BLOG, label: 'Security News Blog', icon: Newspaper },
+    { id: View.NEWS_BLOG, label: 'Security News', icon: Newspaper },
     { id: View.ADVISOR, label: 'AI Advisor', icon: ShieldAlert },
     { id: View.WEEKLY_TIPS, label: 'Weekly Tips', icon: Lightbulb },
-    { id: View.BEST_PRACTICES, label: 'Global Security Trend', icon: Globe },
-    { id: View.TRAINING, label: 'Training Engine', icon: BookOpen },
-    { id: View.REPORT_ANALYZER, label: 'Intelligence Log', icon: FileText },
-    { id: View.TOOLKIT, label: 'Operations Vault', icon: Briefcase },
+    { id: View.BEST_PRACTICES, label: 'Global Trends', icon: Globe },
+    { id: View.TRAINING, label: 'Training Vault', icon: BookOpen },
+    { id: View.REPORT_ANALYZER, label: 'Audit Log', icon: FileText },
+    { id: View.TOOLKIT, label: 'Ops Vault', icon: Briefcase },
   ];
 
-  const baseClasses = "fixed inset-y-0 left-0 z-[60] w-[85vw] sm:w-80 bg-[#0a0f1a] border-r border-slate-800/40 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 shadow-2xl lg:shadow-none";
+  const baseClasses = "fixed inset-y-0 left-0 z-[100] w-[85vw] sm:w-72 bg-[#0a0f1a] border-r border-slate-800/40 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 shadow-2xl lg:shadow-none";
   const mobileClasses = isMobileMenuOpen ? "translate-x-0" : "-translate-x-full";
 
   return (
@@ -50,30 +49,30 @@ const Navigation: React.FC<NavigationProps> = ({
       {/* Mobile Overlay */}
       {isMobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[50] lg:hidden animate-in fade-in"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] lg:hidden animate-in fade-in"
           onClick={closeMobileMenu}
         />
       )}
 
       <div className={`${baseClasses} ${mobileClasses}`}>
         <div className="h-full flex flex-col">
-          <div className="p-8 border-b border-slate-800/40 flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <AntiRiskLogo />
+          <div className="p-6 sm:p-8 border-b border-slate-800/40 flex justify-between items-center">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <AntiRiskLogo className="w-8 h-8 sm:w-10 sm:h-10" />
               <div>
-                <h1 className="font-bold text-2xl text-white leading-tight tracking-tight">AntiRisk</h1>
-                <p className="text-[10px] text-red-500 font-black tracking-[0.25em] uppercase">MANAGEMENT</p>
+                <h1 className="font-bold text-xl sm:text-2xl text-white leading-tight tracking-tight">AntiRisk</h1>
+                <p className="text-[8px] sm:text-[10px] text-red-500 font-black tracking-[0.2em] uppercase">MANAGEMENT</p>
               </div>
             </div>
             <button 
               onClick={closeMobileMenu}
-              className="lg:hidden p-2 text-slate-500 hover:text-white bg-slate-900/50 rounded-lg transition-colors"
+              className="lg:hidden p-2 text-slate-500 hover:text-white bg-slate-900/50 rounded-lg"
             >
-              <X size={24} />
+              <X size={20} />
             </button>
           </div>
 
-          <nav className="flex-1 py-10 px-5 space-y-2 overflow-y-auto scrollbar-hide">
+          <nav className="flex-1 py-6 px-4 space-y-1 overflow-y-auto scrollbar-hide">
             {navItems.map((item) => {
               const isActive = currentView === item.id;
               const Icon = item.icon;
@@ -84,18 +83,18 @@ const Navigation: React.FC<NavigationProps> = ({
                     setView(item.id);
                     closeMobileMenu();
                   }}
-                  className={`w-full flex items-center justify-between px-6 py-4 rounded-2xl transition-all duration-200 group active:scale-[0.97] ${
+                  className={`w-full flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl transition-all group active:scale-[0.97] ${
                     isActive 
                       ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' 
                       : 'text-slate-400 hover:bg-slate-900/50 hover:text-white'
                   }`}
                 >
-                  <div className="flex items-center gap-5">
-                    <Icon size={24} className={`${isActive ? 'text-white' : 'text-slate-500 group-hover:text-blue-400'} transition-colors`} />
-                    <span className="font-bold text-lg text-left">{item.label}</span>
+                  <div className="flex items-center gap-4 sm:gap-5">
+                    <Icon size={20} sm:size={24} className={`${isActive ? 'text-white' : 'text-slate-500 group-hover:text-blue-400'}`} />
+                    <span className="font-bold text-base sm:text-lg text-left">{item.label}</span>
                   </div>
                   {item.id === View.BEST_PRACTICES && bestPracticesBadge > 0 && (
-                    <span className="bg-red-500 text-white text-[10px] font-black px-2 py-1 rounded-lg">
+                    <span className="bg-red-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded">
                       {bestPracticesBadge}
                     </span>
                   )}
@@ -104,19 +103,19 @@ const Navigation: React.FC<NavigationProps> = ({
             })}
           </nav>
 
-          <div className="p-8 border-t border-slate-800/40 space-y-6">
+          <div className="p-6 sm:p-8 border-t border-slate-800/40 space-y-4 sm:space-y-6">
             <button 
               onClick={() => { onOpenSettings(); closeMobileMenu(); }}
-              className="w-full flex items-center gap-5 px-6 py-4 rounded-2xl text-slate-400 hover:bg-slate-900/50 hover:text-white transition-all active:scale-[0.97]"
+              className="w-full flex items-center gap-4 sm:gap-5 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl text-slate-400 hover:bg-slate-900/50 hover:text-white transition-all active:scale-[0.97]"
             >
-              <User size={24} className={currentView === View.DASHBOARD ? "text-slate-500" : "text-blue-400"} />
-              <span className="font-bold text-lg">CEO Profile</span>
+              <User size={20} sm:size={24} className="text-blue-400" />
+              <span className="font-bold text-base sm:text-lg">CEO Profile</span>
             </button>
-            <div className="bg-slate-900/30 rounded-3xl p-6 border border-slate-800/40">
-              <h4 className="text-[10px] font-black text-slate-600 uppercase mb-4 tracking-[0.2em]">System Status</h4>
+            <div className="bg-slate-900/30 rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-800/40 hidden sm:block">
+              <h4 className="text-[9px] font-black text-slate-600 uppercase mb-3 tracking-[0.2em]">System Status</h4>
               <div className="flex items-center gap-3">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"></span>
-                <span className="text-sm font-bold text-slate-300">Vault Core Active</span>
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                <span className="text-[10px] sm:text-xs font-bold text-slate-300 uppercase">Vault Active</span>
               </div>
             </div>
           </div>

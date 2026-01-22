@@ -238,6 +238,24 @@ export const analyzeReport = async (reportText: string, previousReports: StoredR
 };
 
 /**
+ * Patrol Route Optimization Analysis
+ */
+export const analyzePatrolPatterns = async (reports: StoredReport[]): Promise<string> => {
+  return withRetry(async () => {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const context = reports.map(r => r.content).slice(0, 10).join('\n---\n');
+    const response: GenerateContentResponse = await ai.models.generateContent({
+      model: PRIMARY_MODEL,
+      contents: `Analyze these historical security reports and suggest optimized patrol routes, timing, and frequencies to address recurring vulnerabilities. Focus on high-deterrence strategies:\n\n${context}`,
+      config: {
+        thinkingConfig: { thinkingBudget: 0 }
+      }
+    });
+    return response.text || "Patrol optimization engine currently recalibrating.";
+  });
+};
+
+/**
  * Automated Training Suggestions from Data
  */
 export const getTrainingSuggestions = async (recentReports: StoredReport[]): Promise<string[]> => {
