@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Menu, Send, Plus, Search, RefreshCw, Download, FileText, ChevronRight, ShieldAlert, BookOpen, Globe, Briefcase, Calendar, ChevronLeft, Save, Trash2, Check, Lightbulb, Printer, Settings as SettingsIcon, MessageCircle, Mail, X, Bell, Database, Upload, Pin, PinOff, BarChart2, Sparkles, Copy, Lock, ShieldCheck, Fingerprint, Eye, Paperclip, XCircle, Bookmark, BookmarkCheck, LayoutGrid, ListFilter, Wand2, Map, ExternalLink, ImageIcon, Target, User, Phone, FileUp, Key, AlertTriangle, EyeIcon, CloudDownload, WifiOff, Newspaper, History } from 'lucide-react';
+import { Menu, Send, Plus, Search, RefreshCw, Download, FileText, ChevronRight, ShieldAlert, BookOpen, Globe, Briefcase, Calendar, ChevronLeft, Save, Trash2, Check, Lightbulb, Printer, Settings as SettingsIcon, MessageCircle, Mail, X, Bell, Database, Upload, Pin, PinOff, BarChart2, Sparkles, Copy, Lock, ShieldCheck, Fingerprint, Eye, Paperclip, XCircle, Bookmark, BookmarkCheck, LayoutGrid, ListFilter, Wand2, Map, ExternalLink, ImageIcon, Target, User, Phone, FileUp, Key, AlertTriangle, EyeIcon, CloudDownload, WifiOff, Newspaper, Zap } from 'lucide-react';
 import Navigation from './components/Navigation.tsx';
 import MarkdownRenderer from './components/MarkdownRenderer.tsx';
 import ShareButton from './components/ShareButton.tsx';
@@ -23,39 +24,6 @@ const initDB = (): Promise<IDBDatabase> => {
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
-  });
-};
-
-const saveOfflineModule = async (module: StoredTrainingModule) => {
-  const db = await initDB();
-  return new Promise<void>((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    store.put(module);
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error);
-  });
-};
-
-const getOfflineModules = async (): Promise<StoredTrainingModule[]> => {
-  const db = await initDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readonly');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.getAll();
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-};
-
-const removeOfflineModuleFromDB = async (id: string) => {
-  const db = await initDB();
-  return new Promise<void>((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    store.delete(id);
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error);
   });
 };
 
@@ -84,15 +52,12 @@ function App() {
   const [showNewTipAlert, setShowNewTipAlert] = useState<WeeklyTip | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  // Offline Storage State
-  const [offlineIds, setOfflineIds] = useState<Set<string>>(new Set());
   const [isOfflineMode, setIsOfflineMode] = useState(!navigator.onLine);
 
   useEffect(() => {
     const handleStatusChange = () => setIsOfflineMode(!navigator.onLine);
     window.addEventListener('online', handleStatusChange);
     window.addEventListener('offline', handleStatusChange);
-    getOfflineModules().then(modules => setOfflineIds(new Set(modules.map(m => m.id))));
     return () => {
       window.removeEventListener('online', handleStatusChange);
       window.removeEventListener('offline', handleStatusChange);
@@ -150,6 +115,7 @@ function App() {
   const [newSopDesc, setNewSopDesc] = useState('');
   const [newSopContent, setNewSopContent] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const auditFileInputRef = useRef<HTMLInputElement>(null);
 
   const [trainingTopic, setTrainingTopic] = useState('');
   const [trainingWeek, setTrainingWeek] = useState<number>(1);
@@ -158,16 +124,70 @@ function App() {
   const [trainingSources, setTrainingSources] = useState<Array<{ title: string; url: string }> | undefined>(undefined);
   const [isTrainingLoading, setIsTrainingLoading] = useState(false);
   
-  // Training View specific states
-  const [trainingViewMode, setTrainingViewMode] = useState<'GENERATE' | 'HISTORY'>('GENERATE');
-  const [trainingSuggestions, setTrainingSuggestions] = useState<string[]>([]);
+  // Auto-suggestion state
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
   const [showTrainingSuggestions, setShowTrainingSuggestions] = useState(false);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  // Toolkit Sub-navigation state
+  const [toolkitTab, setToolkitTab] = useState<'TEMPLATES' | 'AUDIT'>('TEMPLATES');
+
+  // Instant local suggestions
+  const localSuggestions = useMemo(() => {
+    if (trainingTopic.trim().length < 2) return [];
+    const lower = trainingTopic.toLowerCase();
+    const matches: string[] = [];
+    
+    // Check main categories
+    Object.keys(SECURITY_TRAINING_DB).forEach(cat => {
+      if (cat.toLowerCase().includes(lower)) matches.push(cat);
+    });
+
+    // Check individual sub-topics
+    Object.values(SECURITY_TRAINING_DB).flat().forEach(topic => {
+      if (topic.toLowerCase().includes(lower)) matches.push(topic);
+    });
+
+    return [...new Set(matches)].slice(0, 5);
+  }, [trainingTopic]);
+
+  // Debounced AI suggestions
+  useEffect(() => {
+    if (trainingTopic.trim().length < 3 || isOfflineMode || !showTrainingSuggestions) {
+      setAiSuggestions([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setIsFetchingSuggestions(true);
+      try {
+        const suggestions = await fetchTopicSuggestions(trainingTopic);
+        // Avoid duplicate with local ones
+        setAiSuggestions(suggestions.filter(s => !localSuggestions.includes(s)));
+      } catch (err) {
+        console.error("AI fetch failed", err);
+      } finally {
+        setIsFetchingSuggestions(false);
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [trainingTopic, isOfflineMode, showTrainingSuggestions, localSuggestions]);
+
+  // Click outside listener for suggestions
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
+        setShowTrainingSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const [reportText, setReportText] = useState('');
   const [analysisResult, setAnalysisResult] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analyzerTab, setAnalyzerTab] = useState<'DAILY' | 'PATROL'>('DAILY');
+  const [analyzerTab, setAnalyzerTab] = useState<'DAILY' | 'PATROL' | 'INCIDENT'>('DAILY');
   const [bpTopic, setBpTopic] = useState('');
   const [bpContent, setBpContent] = useState<{ text: string; sources?: Array<{ title: string; url: string }> } | null>(null);
   const [isBpLoading, setIsBpLoading] = useState(false);
@@ -188,26 +208,6 @@ function App() {
   useEffect(() => { localStorage.setItem('security_app_training', JSON.stringify(savedTraining)); }, [savedTraining]);
   useEffect(() => { localStorage.setItem('security_app_custom_sops', JSON.stringify(customSops)); }, [customSops]);
 
-  // Handle Training Suggestions Debounce
-  useEffect(() => {
-    if (trainingTopic.trim().length < 3 || isOfflineMode || !showTrainingSuggestions) {
-      setTrainingSuggestions([]);
-      return;
-    }
-    const timer = setTimeout(async () => {
-      setIsFetchingSuggestions(true);
-      try {
-        const suggestions = await fetchTopicSuggestions(trainingTopic);
-        setTrainingSuggestions(suggestions);
-      } catch (err) {
-        console.error("Suggestion fetch failed", err);
-      } finally {
-        setIsFetchingSuggestions(false);
-      }
-    }, 600);
-    return () => clearTimeout(timer);
-  }, [trainingTopic, isOfflineMode, showTrainingSuggestions]);
-
   useEffect(() => {
     if (appState === 'READY' && !isOfflineMode) {
       const checkAutomation = async () => {
@@ -223,7 +223,7 @@ function App() {
       };
       checkAutomation();
     }
-  }, [appState, isOfflineMode]);
+  }, [appState, isOfflineMode, weeklyTips]);
 
   useEffect(() => {
     if (appState === 'SPLASH') {
@@ -296,7 +296,9 @@ function App() {
     if (!reportText || isOfflineMode) return;
     setApiError(null); setIsAnalyzing(true);
     try {
-      const result = await analyzeReport(reportText, storedReports);
+      // Map internal tab names to service logic
+      const auditType = analyzerTab === 'INCIDENT' ? 'INCIDENT' : (analyzerTab === 'PATROL' ? 'PATROL' : 'SHIFT');
+      const result = await analyzeReport(reportText, auditType);
       setAnalysisResult(result);
       setStoredReports(prev => [{ id: Date.now().toString(), timestamp: Date.now(), dateStr: new Date().toLocaleDateString(), content: reportText, analysis: result }, ...prev]);
     } catch (err: any) { handleError(err); } finally { setIsAnalyzing(false); }
@@ -319,22 +321,7 @@ function App() {
       const result = await generateTrainingModule(trainingTopic, trainingWeek, trainingRole);
       setTrainingContent(result.text);
       setTrainingSources(result.sources);
-      
-      // AUTO-SAVE to Local Intelligence Database
-      const newModule: StoredTrainingModule = {
-        id: Date.now().toString(),
-        timestamp: Date.now(),
-        topic: trainingTopic,
-        targetAudience: trainingRole,
-        content: result.text,
-        generatedDate: new Date().toLocaleDateString()
-      };
-      setSavedTraining(prev => [newModule, ...prev]);
     } catch (err: any) { handleError(err); } finally { setIsTrainingLoading(false); }
-  };
-
-  const handleDeleteTraining = (id: string) => {
-    setSavedTraining(prev => prev.filter(m => m.id !== id));
   };
 
   const handleFetchBP = async () => {
@@ -391,6 +378,17 @@ function App() {
     reader.readAsText(file);
   };
 
+  const handleAuditFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      setReportText(content);
+    };
+    reader.readAsText(file);
+  };
+
   // --- Views ---
 
   const renderDashboard = () => (
@@ -401,7 +399,7 @@ function App() {
           <p className="text-blue-100 text-lg sm:text-xl mb-8 font-medium">Over 10-Million Training Vibrations and High-Fidelity CEO Intel.</p>
           <div className="flex flex-col sm:flex-row gap-4">
             <button onClick={() => setCurrentView(View.ADVISOR)} className="px-8 py-4 bg-white text-blue-900 rounded-2xl font-bold text-lg hover:bg-blue-50 transition-all">Strategic Consultation</button>
-            <button onClick={() => setCurrentView(View.TRAINING)} className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-bold text-lg hover:bg-blue-700 transition-all">Audit 10M Vault</button>
+            <button onClick={() => setCurrentView(View.TRAINING)} className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-bold text-lg hover:bg-blue-700 transition-all">Audit 10M Builder</button>
           </div>
         </div>
       </div>
@@ -425,113 +423,113 @@ function App() {
       <div className="lg:col-span-4 flex flex-col gap-6">
         <div className="bg-[#1b2537] p-8 rounded-[2rem] border border-slate-700/50 shadow-lg relative">
           <div className="absolute -top-3 -right-3 bg-blue-600 text-[10px] font-black px-3 py-1.5 rounded-full shadow-lg z-10 border border-blue-400/30 animate-pulse uppercase tracking-widest">10M+ Bank</div>
-          <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3"><BookOpen size={28} className="text-emerald-400" /> Training Vault</h2>
-          
-          <div className="flex gap-2 p-1 bg-slate-900/60 rounded-xl mb-6 border border-slate-800">
-            <button onClick={() => setTrainingViewMode('GENERATE')} className={`flex-1 py-2 rounded-lg font-bold text-xs transition-all ${trainingViewMode === 'GENERATE' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500'}`}>Generate</button>
-            <button onClick={() => setTrainingViewMode('HISTORY')} className={`flex-1 py-2 rounded-lg font-bold text-xs transition-all flex items-center justify-center gap-2 ${trainingViewMode === 'HISTORY' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500'}`}>Database {savedTraining.length > 0 && <span className="bg-slate-800/50 px-1.5 py-0.5 rounded text-[10px]">{savedTraining.length}</span>}</button>
-          </div>
-
-          {trainingViewMode === 'GENERATE' ? (
-            <div className="space-y-4">
-              <div className="space-y-1 relative">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Deep Intelligence Search</label>
-                <div className="relative">
-                  <input 
-                    value={trainingTopic} 
-                    onChange={(e) => {
-                      setTrainingTopic(e.target.value);
-                      setShowTrainingSuggestions(true);
-                    }} 
-                    onFocus={() => setShowTrainingSuggestions(true)}
-                    className="w-full bg-slate-900/50 border border-slate-700 rounded-2xl px-5 py-3.5 text-white outline-none focus:border-blue-500 transition-all text-sm" 
-                    placeholder="Search 10-Million+ Topics..." 
-                  />
+          <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3"><BookOpen size={28} className="text-emerald-400" /> Training Builder</h2>
+          <div className="space-y-4">
+            <div className="space-y-1 relative" ref={suggestionsRef}>
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Topic Intelligence</label>
+              <div className="relative">
+                <input 
+                  value={trainingTopic} 
+                  onChange={(e) => {
+                    setTrainingTopic(e.target.value);
+                    setShowTrainingSuggestions(true);
+                  }} 
+                  onFocus={() => setShowTrainingSuggestions(true)}
+                  className="w-full bg-slate-900/50 border border-slate-700 rounded-2xl px-5 py-3.5 text-white outline-none focus:border-blue-500 transition-all text-sm sm:text-base pr-10" 
+                  placeholder="Query Core Database..." 
+                />
+                <div className="absolute right-4 top-1/2 -translate-y-1/2">
                   {isFetchingSuggestions ? (
-                    <RefreshCw size={14} className="absolute right-4 top-4 text-blue-500 animate-spin" />
+                    <RefreshCw size={16} className="text-blue-500 animate-spin" />
                   ) : (
-                    <Search size={14} className="absolute right-4 top-4 text-slate-500" />
+                    <Zap size={16} className={`${trainingTopic.length > 2 ? 'text-blue-400' : 'text-slate-600'}`} />
                   )}
                 </div>
-                
-                {/* Auto-suggestions Dropdown */}
-                {showTrainingSuggestions && trainingSuggestions.length > 0 && (
-                  <div className="absolute top-[calc(100%+8px)] left-0 right-0 bg-[#0a1222] border border-slate-700 rounded-2xl shadow-2xl z-[50] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 ring-1 ring-blue-500/20">
-                    <div className="p-2 border-b border-slate-800 flex justify-between items-center bg-slate-900/40">
-                      <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest pl-2">Vibration Stream</span>
-                      <button onClick={() => setShowTrainingSuggestions(false)} className="text-slate-500 hover:text-white p-1"><X size={12}/></button>
-                    </div>
-                    <div className="max-h-60 overflow-y-auto scrollbar-hide">
-                      {trainingSuggestions.map((suggestion, idx) => (
+              </div>
+              
+              {/* Auto-suggestions Dropdown */}
+              {showTrainingSuggestions && (localSuggestions.length > 0 || aiSuggestions.length > 0) && (
+                <div className="absolute top-[calc(100%+8px)] left-0 right-0 bg-[#0a1222]/95 backdrop-blur-xl border border-slate-700 rounded-2xl shadow-2xl z-[50] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 ring-1 ring-blue-500/20">
+                  
+                  {/* Local Matches */}
+                  {localSuggestions.length > 0 && (
+                    <div className="py-2">
+                      <div className="px-4 py-1 text-[8px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                        <Database size={10} /> Local Vault Hits
+                      </div>
+                      {localSuggestions.map((suggestion, idx) => (
                         <button 
-                          key={idx} 
+                          key={`local-${idx}`} 
                           onClick={() => {
                             setTrainingTopic(suggestion);
                             setShowTrainingSuggestions(false);
                           }}
-                          className="w-full text-left px-4 py-3 text-xs font-bold text-slate-300 hover:bg-blue-600/10 hover:text-blue-400 transition-colors flex items-center gap-3 border-b border-slate-800/40 last:border-0"
+                          className="w-full text-left px-4 py-3 text-xs sm:text-sm font-bold text-slate-300 hover:bg-blue-600/10 hover:text-blue-400 transition-colors flex items-center gap-3"
                         >
-                          <Wand2 size={12} className="shrink-0 text-blue-500 opacity-60" />
+                          <Check size={14} className="shrink-0 text-emerald-500 opacity-60" />
                           <span className="truncate">{suggestion}</span>
                         </button>
                       ))}
                     </div>
-                  </div>
-                )}
-              </div>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Target Role</label>
-                  <select value={trainingRole} onChange={(e) => setTrainingRole(e.target.value as SecurityRole)} className="w-full bg-slate-900/40 border border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-300 focus:border-blue-500 outline-none">
-                    <option value={SecurityRole.GUARD}>Guard</option>
-                    <option value={SecurityRole.SUPERVISOR}>Supervisor</option>
-                    <option value={SecurityRole.GEN_SUPERVISOR}>Director</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Progression</label>
-                  <select value={trainingWeek} onChange={(e) => setTrainingWeek(parseInt(e.target.value))} className="w-full bg-slate-900/40 border border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-300 focus:border-blue-500 outline-none">
-                    <option value={1}>Week 1</option>
-                    <option value={2}>Week 2</option>
-                    <option value={3}>Week 3</option>
-                  </select>
-                </div>
-              </div>
+                  )}
 
-              <button 
-                onClick={handleGenerateTraining} 
-                disabled={isTrainingLoading || !trainingTopic} 
-                className="w-full bg-blue-600 py-4 rounded-2xl font-bold text-white shadow-lg flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
-              >
-                {isTrainingLoading ? <RefreshCw className="animate-spin" size={20} /> : <Sparkles size={20} />}
-                Audit Internet & Generate
-              </button>
-            </div>
-          ) : (
-            <div className="flex-1 overflow-y-auto space-y-3 max-h-[400px] scrollbar-hide pr-1">
-              {savedTraining.length > 0 ? (
-                savedTraining.map(module => (
-                  <div key={module.id} className="group p-4 bg-slate-900/40 border border-slate-800 rounded-2xl hover:border-blue-500/30 transition-all cursor-pointer flex justify-between items-center" onClick={() => setTrainingContent(module.content)}>
-                    <div className="min-w-0">
-                      <h4 className="text-xs font-bold text-slate-200 truncate pr-2">{module.topic}</h4>
-                      <div className="flex gap-2 mt-1">
-                        <span className="text-[9px] font-black text-slate-500 uppercase">{module.generatedDate}</span>
-                        <span className="text-[9px] font-black text-blue-500 uppercase">W{module.timestamp % 3 + 1}</span>
+                  {/* AI Predictions */}
+                  {aiSuggestions.length > 0 && (
+                    <div className="py-2 border-t border-slate-800">
+                      <div className="px-4 py-1 text-[8px] font-black text-blue-500 uppercase tracking-widest flex items-center gap-2">
+                        <Sparkles size={10} /> AI Predicted Variants
                       </div>
+                      {aiSuggestions.map((suggestion, idx) => (
+                        <button 
+                          key={`ai-${idx}`} 
+                          onClick={() => {
+                            setTrainingTopic(suggestion);
+                            setShowTrainingSuggestions(false);
+                          }}
+                          className="w-full text-left px-4 py-3 text-xs sm:text-sm font-bold text-slate-300 hover:bg-blue-600/10 hover:text-blue-400 transition-colors flex items-center gap-3"
+                        >
+                          <Wand2 size={14} className="shrink-0 text-blue-400 opacity-60" />
+                          <span className="truncate">{suggestion}</span>
+                        </button>
+                      ))}
                     </div>
-                    <button onClick={(e) => { e.stopPropagation(); handleDeleteTraining(module.id); }} className="p-2 text-slate-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14}/></button>
-                  </div>
-                ))
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center py-20 opacity-20"><History size={48} /><p className="text-[10px] font-black uppercase mt-4">Database Empty</p></div>
+                  )}
+                </div>
               )}
             </div>
-          )}
-        </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Target Role</label>
+                <select value={trainingRole} onChange={(e) => setTrainingRole(e.target.value as SecurityRole)} className="w-full bg-slate-900/40 border border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-300 focus:border-blue-500 outline-none">
+                  <option value={SecurityRole.GUARD}>Guard</option>
+                  <option value={SecurityRole.SUPERVISOR}>Supervisor</option>
+                  <option value={SecurityRole.GEN_SUPERVISOR}>Director</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Progression</label>
+                <select value={trainingWeek} onChange={(e) => setTrainingWeek(parseInt(e.target.value))} className="w-full bg-slate-900/40 border border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-300 focus:border-blue-500 outline-none">
+                  <option value={1}>Week 1</option>
+                  <option value={2}>Week 2</option>
+                  <option value={3}>Week 3</option>
+                  <option value={4}>Week 4</option>
+                </select>
+              </div>
+            </div>
 
+            <button 
+              onClick={handleGenerateTraining} 
+              disabled={isTrainingLoading || !trainingTopic} 
+              className={`w-full py-4 rounded-2xl font-bold text-white shadow-lg flex items-center justify-center gap-3 transition-all ${trainingTopic ? 'bg-blue-600 hover:bg-blue-700 active:scale-95' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}`}
+            >
+              {isTrainingLoading ? <RefreshCw className="animate-spin" size={20} /> : <Sparkles size={20} />}
+              Execute Generation
+            </button>
+          </div>
+        </div>
         <div className="bg-[#1b2537] rounded-[2rem] border border-slate-700/50 flex-1 flex flex-col overflow-hidden shadow-inner hidden lg:flex">
-          <div className="p-4 border-b border-slate-700/50 bg-slate-900/40 text-xs font-black text-slate-400 uppercase tracking-widest">Global Sector Indices</div>
+          <div className="p-4 border-b border-slate-700/50 bg-slate-900/40 text-xs font-black text-slate-400 uppercase tracking-widest">Database Categories</div>
           <div className="flex-1 overflow-y-auto p-4 scrollbar-hide space-y-2">
             {Object.keys(SECURITY_TRAINING_DB).map(cat => (
               <button key={cat} onClick={() => {
@@ -542,46 +540,11 @@ function App() {
           </div>
         </div>
       </div>
-
-      <div className="lg:col-span-8 flex flex-col gap-6 min-h-[500px]">
+      <div className="lg:col-span-8 flex flex-col gap-6 min-h-[400px]">
         <div className="bg-[#1b2537] rounded-[2rem] border border-slate-700/50 overflow-hidden flex flex-col flex-1 shadow-2xl">
-          <div className="p-6 bg-slate-900/40 border-b border-slate-700/50 flex justify-between items-center">
-            <h3 className="font-bold text-white flex items-center gap-3">
-              <ShieldCheck className="text-blue-400" /> 
-              {trainingContent ? 'Intelligence Brief Generated' : 'Waiting for Query'}
-            </h3>
-            {trainingContent && <ShareButton content={trainingContent} title={`${trainingTopic} - Strategic Brief`} />}
-          </div>
+          <div className="p-6 bg-slate-900/40 border-b border-slate-700/50 flex justify-between items-center"><h3 className="font-bold text-white flex items-center gap-3"><ShieldCheck className="text-blue-400" /> Operational Brief (Week {trainingWeek})</h3>{trainingContent && <ShareButton content={trainingContent} title={`${trainingTopic} - Week ${trainingWeek}`} />}</div>
           <div className="flex-1 p-8 overflow-y-auto bg-slate-900/10 scrollbar-hide">
-            {trainingContent ? (
-              <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-                <MarkdownRenderer content={trainingContent} />
-                {trainingSources && trainingSources.length > 0 && (
-                  <div className="mt-8 pt-8 border-t border-slate-800">
-                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Verified Grounding Sources</h4>
-                    <div className="flex flex-wrap gap-3">
-                      {trainingSources.map((source, idx) => (
-                        <a key={idx} href={source.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 rounded-lg text-[10px] font-bold text-blue-400 border border-slate-700 hover:border-blue-500 transition-all">
-                          <ExternalLink size={12} /> {source.title}
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center opacity-30 italic text-center gap-8 py-20 max-w-sm mx-auto">
-                <div className="relative">
-                  <Database size={80} className="text-slate-400" />
-                  <div className="absolute -bottom-2 -right-2 bg-blue-600 p-2 rounded-xl shadow-lg animate-bounce"><Search size={24} className="text-white" /></div>
-                </div>
-                <p className="text-lg font-medium leading-relaxed">Search for any topic. If not in our core database, we will audit the global intelligence stream to generate a deep-dive training for you.</p>
-                <div className="flex gap-4">
-                  <span className="text-[10px] font-black text-slate-500 uppercase border border-slate-800 px-3 py-1.5 rounded-lg">10M+ Topics</span>
-                  <span className="text-[10px] font-black text-slate-500 uppercase border border-slate-800 px-3 py-1.5 rounded-lg">Real-time Grounding</span>
-                </div>
-              </div>
-            )}
+            {trainingContent ? <MarkdownRenderer content={trainingContent} /> : <div className="h-full flex flex-col items-center justify-center opacity-30 italic text-center gap-6 py-20"><Target size={80} /><p className="text-lg">Audit the 10-Million+ Topic database to generate training for Weeks 1, 2, or 3.</p></div>}
           </div>
         </div>
       </div>
@@ -691,34 +654,6 @@ function App() {
               </div>
             </div>
           )}
-          {currentView === View.REPORT_ANALYZER && (
-            <div className="flex flex-col h-full max-w-6xl mx-auto space-y-6">
-              <div className="flex gap-2 p-1 bg-slate-800/50 rounded-2xl border border-slate-700/50 w-fit mx-auto">
-                <button onClick={() => setAnalyzerTab('DAILY')} className={`px-10 py-3.5 rounded-xl font-bold transition-all text-sm ${analyzerTab === 'DAILY' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400'}`}>Shift Analysis</button>
-                <button onClick={() => setAnalyzerTab('PATROL')} className={`px-10 py-3.5 rounded-xl font-bold transition-all text-sm ${analyzerTab === 'PATROL' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400'}`}>Patrol Strategy</button>
-              </div>
-              <div className="flex-1 flex flex-col lg:grid lg:grid-cols-2 gap-6 min-h-0">
-                <div className="bg-[#1b2537] p-8 rounded-[2rem] border border-slate-700/50 flex flex-col shadow-xl">
-                  <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3"><FileText className="text-blue-400" /> Dispatch Log Intake</h3>
-                  {analyzerTab === 'DAILY' ? (
-                    <>
-                      <textarea value={reportText} onChange={(e) => setReportText(e.target.value)} className="flex-1 bg-slate-900/50 border border-slate-700 rounded-2xl p-6 text-white focus:outline-none resize-none shadow-inner" placeholder="Paste logs for pattern analysis..." />
-                      <button onClick={handleAnalyzeReport} disabled={isAnalyzing || !reportText} className="mt-6 bg-blue-600 hover:bg-blue-700 py-5 rounded-2xl font-bold text-white shadow-xl active:scale-95 transition-all text-lg">{isAnalyzing ? 'Extracting Patterns...' : 'Audit Log Analysis'}</button>
-                    </>
-                  ) : (
-                    <div className="flex-1 flex flex-col gap-6">
-                      <IncidentChart reports={storedReports} />
-                      <button onClick={handleAnalyzePatrols} className="w-full bg-blue-600 py-5 rounded-2xl font-bold text-white shadow-xl active:scale-95 transition-all text-lg">Optimize Patrol Routes</button>
-                    </div>
-                  )}
-                </div>
-                <div className="bg-[#1b2537] rounded-[2rem] border border-slate-700/50 overflow-hidden flex flex-col shadow-2xl min-h-[400px]">
-                  <div className="p-6 bg-slate-900/40 border-b border-slate-700/50 flex justify-between items-center"><h3 className="font-bold text-white flex items-center gap-3"><Sparkles className="text-blue-400" size={18} /> Strategic Audit Assessment</h3>{analysisResult && <ShareButton content={analysisResult} title="Security Log Audit" />}</div>
-                  <div className="flex-1 p-8 overflow-y-auto scrollbar-hide">{analysisResult ? <MarkdownRenderer content={analysisResult} /> : <div className="h-full flex flex-col items-center justify-center text-slate-700 opacity-20 text-center gap-4 py-20"><ShieldCheck size={80} /><p className="text-xl font-bold italic">Audit Briefs will appear here.</p></div>}</div>
-                </div>
-              </div>
-            </div>
-          )}
           {currentView === View.WEEKLY_TIPS && (
              <div className="max-w-4xl mx-auto space-y-6 h-full flex flex-col">
                <div className="flex flex-col sm:flex-row justify-between items-center bg-slate-800/40 p-8 rounded-[3rem] border border-slate-700/50 shadow-xl gap-6">
@@ -733,21 +668,135 @@ function App() {
           {currentView === View.TOOLKIT && (
             <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in">
               <div className="flex flex-col md:flex-row justify-between items-center gap-6 bg-[#1b2537] p-8 rounded-[2.5rem] border border-slate-700/50 shadow-lg">
-                <div className="flex items-center gap-4"><Briefcase size={36} className="text-blue-400" /><div><h2 className="text-3xl font-black text-white">Operations Vault</h2><p className="text-slate-400">Tactical SOPs and deployment checklists.</p></div></div>
-                <div className="flex gap-4 w-full md:w-auto">
-                  <div className="relative flex-1 sm:w-64"><input value={toolkitSearch} onChange={(e) => setToolkitSearch(e.target.value)} placeholder="Search..." className="w-full bg-slate-900/50 border border-slate-700 rounded-2xl px-5 py-3 text-white focus:border-blue-500" /><Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} /></div>
-                  <button onClick={() => setShowSopModal(true)} className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-2xl font-bold text-white shadow-xl flex items-center gap-2"><Plus size={18} /> SOP</button>
+                <div className="flex items-center gap-4">
+                  <Briefcase size={36} className="text-blue-400" />
+                  <div>
+                    <h2 className="text-3xl font-black text-white">Ops Vault</h2>
+                    <p className="text-slate-400">Tactical SOPs and Risk Analysis Audit.</p>
+                  </div>
+                </div>
+                <div className="flex gap-2 p-1 bg-slate-900/60 rounded-2xl border border-slate-800">
+                  <button 
+                    onClick={() => setToolkitTab('TEMPLATES')} 
+                    className={`px-6 py-2.5 rounded-xl font-bold text-xs transition-all ${toolkitTab === 'TEMPLATES' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'}`}
+                  >
+                    Templates
+                  </button>
+                  <button 
+                    onClick={() => setToolkitTab('AUDIT')} 
+                    className={`px-6 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 ${toolkitTab === 'AUDIT' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'}`}
+                  >
+                    Audit & Risk
+                  </button>
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
-                {[...STATIC_TEMPLATES, ...customSops].filter(s => s.title.toLowerCase().includes(toolkitSearch.toLowerCase())).map(sop => (
-                  <div key={sop.id} className="bg-[#1b2537] rounded-3xl border border-slate-700/40 p-6 flex flex-col gap-4 shadow-md group hover:border-blue-500/30 transition-all">
-                    <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-400"><FileText size={24} /></div>
-                    <div><h3 className="text-xl font-bold text-white mb-1">{sop.title}</h3><p className="text-sm text-slate-400 line-clamp-2">{sop.description}</p></div>
-                    <button onClick={() => { navigator.clipboard.writeText(sop.content); alert('Template copied.'); }} className="mt-2 w-full bg-slate-800/60 py-3 rounded-xl font-bold text-slate-300 border border-slate-700 hover:bg-slate-800 transition-all">Copy Plain Text</button>
+
+              {toolkitTab === 'TEMPLATES' ? (
+                <div className="space-y-8">
+                  <div className="flex flex-col md:flex-row justify-between items-center gap-6 bg-[#1b2537]/50 p-6 rounded-[2rem] border border-slate-800/50">
+                    <div className="relative flex-1 w-full sm:w-64">
+                      <input value={toolkitSearch} onChange={(e) => setToolkitSearch(e.target.value)} placeholder="Search templates..." className="w-full bg-slate-900/50 border border-slate-700 rounded-2xl px-5 py-3 text-white focus:border-blue-500" />
+                      <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                    </div>
+                    <button onClick={() => setShowSopModal(true)} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-2xl font-bold text-white shadow-xl flex items-center justify-center gap-2">
+                      <Plus size={18} /> New SOP
+                    </button>
                   </div>
-                ))}
-              </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
+                    {[...STATIC_TEMPLATES, ...customSops].filter(s => s.title.toLowerCase().includes(toolkitSearch.toLowerCase())).map(sop => (
+                      <div key={sop.id} className="bg-[#1b2537] rounded-3xl border border-slate-700/40 p-6 flex flex-col gap-4 shadow-md group hover:border-blue-500/30 transition-all">
+                        <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-400"><FileText size={24} /></div>
+                        <div><h3 className="text-xl font-bold text-white mb-1">{sop.title}</h3><p className="text-sm text-slate-400 line-clamp-2">{sop.description}</p></div>
+                        <button onClick={() => { navigator.clipboard.writeText(sop.content); alert('Template copied.'); }} className="mt-2 w-full bg-slate-800/60 py-3 rounded-xl font-bold text-slate-300 border border-slate-700 hover:bg-slate-800 transition-all">Copy Plain Text</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col space-y-6">
+                  <div className="flex flex-col md:flex-row gap-4 p-1 bg-slate-800/50 rounded-2xl border border-slate-700/50 w-full md:w-fit mx-auto">
+                    <button onClick={() => setAnalyzerTab('DAILY')} className={`flex-1 md:flex-none px-6 py-3 rounded-xl font-bold transition-all text-xs ${analyzerTab === 'DAILY' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>General Briefs</button>
+                    <button onClick={() => setAnalyzerTab('PATROL')} className={`flex-1 md:flex-none px-6 py-3 rounded-xl font-bold transition-all text-xs ${analyzerTab === 'PATROL' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>Daily Patrol Audit</button>
+                    <button onClick={() => setAnalyzerTab('INCIDENT')} className={`flex-1 md:flex-none px-6 py-3 rounded-xl font-bold transition-all text-xs ${analyzerTab === 'INCIDENT' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>5Ws Incident Audit</button>
+                  </div>
+                  <div className="flex-1 flex flex-col lg:grid lg:grid-cols-2 gap-6 min-h-0">
+                    <div className="bg-[#1b2537] p-8 rounded-[2rem] border border-slate-700/50 flex flex-col shadow-xl">
+                      <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                           <ShieldAlert className="text-blue-400" /> Risk Log Intake
+                        </h3>
+                        <div className="flex gap-2">
+                           <button onClick={() => auditFileInputRef.current?.click()} className="p-2 bg-slate-800 rounded-lg text-blue-400 hover:bg-slate-700 transition-colors" title="Upload Log/Report">
+                             <Upload size={18} />
+                           </button>
+                           <input ref={auditFileInputRef} type="file" accept=".txt,.md" className="hidden" onChange={handleAuditFileUpload} />
+                           <button onClick={() => setReportText('')} className="p-2 bg-slate-800 rounded-lg text-red-400 hover:bg-slate-700 transition-colors" title="Clear Text">
+                             <Trash2 size={18} />
+                           </button>
+                        </div>
+                      </div>
+                      
+                      <div className="relative flex-1">
+                        <textarea 
+                          value={reportText} 
+                          onChange={(e) => setReportText(e.target.value)} 
+                          className="w-full h-full bg-slate-900/50 border border-slate-700 rounded-2xl p-6 text-white focus:outline-none resize-none shadow-inner min-h-[300px] text-sm font-mono scrollbar-hide" 
+                          placeholder={analyzerTab === 'PATROL' ? "Upload/Paste Daily Patrol Checklist data to detect inconsistencies and tactical gaps..." : (analyzerTab === 'INCIDENT' ? "Upload/Paste 5Ws Incident Report data for liability and vulnerability check..." : "Upload/Paste shift logs for general risk analysis...")} 
+                        />
+                        {reportText.length > 0 && (
+                          <div className="absolute top-4 right-4 animate-pulse">
+                            <Lock size={16} className="text-blue-500/50" />
+                          </div>
+                        )}
+                      </div>
+                      
+                      <button 
+                        onClick={handleAnalyzeReport} 
+                        disabled={isAnalyzing || !reportText} 
+                        className="mt-6 bg-blue-600 hover:bg-blue-700 py-5 rounded-2xl font-bold text-white shadow-xl active:scale-95 transition-all text-lg flex items-center justify-center gap-3"
+                      >
+                        {isAnalyzing ? (
+                          <><RefreshCw className="animate-spin" /> Performing Executive Audit...</>
+                        ) : (
+                          <><Fingerprint /> Execute Risk Analysis</>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="bg-[#1b2537] rounded-[2rem] border border-slate-700/50 overflow-hidden flex flex-col shadow-2xl min-h-[400px]">
+                      <div className="p-6 bg-slate-900/40 border-b border-slate-700/50 flex justify-between items-center">
+                        <h3 className="font-bold text-white flex items-center gap-3"><Sparkles className="text-emerald-400" size={18} /> CEO Prescriptive Advice</h3>
+                        {analysisResult && <ShareButton content={analysisResult} title="Strategic Security Analysis Brief" />}
+                      </div>
+                      <div className="flex-1 p-8 overflow-y-auto scrollbar-hide">
+                        {analysisResult ? (
+                          <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+                            <MarkdownRenderer content={analysisResult} />
+                          </div>
+                        ) : (
+                          <div className="h-full flex flex-col items-center justify-center text-slate-700 opacity-20 text-center gap-6 py-20">
+                            <div className="relative">
+                              <ShieldCheck size={100} />
+                              <div className="absolute -bottom-2 -right-2 bg-emerald-500 p-2 rounded-xl shadow-lg animate-bounce">
+                                <Zap size={24} className="text-white" />
+                              </div>
+                            </div>
+                            <p className="text-xl font-bold italic max-w-xs mx-auto">Upload reports to get an analysis of vulnerabilities and prescriptive step-by-step advice on HOW to improve operations.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Historical Context (Optional Visualization) */}
+                  {storedReports.length > 0 && (
+                    <div className="bg-[#1b2537] p-8 rounded-[2rem] border border-slate-700/50 mt-6 animate-in fade-in">
+                       <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-6">Long-term Trend Visualization</h4>
+                       <IncidentChart reports={storedReports} />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

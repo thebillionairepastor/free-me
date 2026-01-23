@@ -36,8 +36,7 @@ const Navigation: React.FC<NavigationProps> = ({
     { id: View.ADVISOR, label: 'AI Advisor', icon: ShieldAlert },
     { id: View.WEEKLY_TIPS, label: 'Weekly Tips', icon: Lightbulb },
     { id: View.BEST_PRACTICES, label: 'Global Trends', icon: Globe },
-    { id: View.TRAINING, label: 'Training Vault', icon: BookOpen },
-    { id: View.REPORT_ANALYZER, label: 'Audit Log', icon: FileText },
+    { id: View.TRAINING, label: 'Training Builder', icon: BookOpen },
     { id: View.TOOLKIT, label: 'Ops Vault', icon: Briefcase },
   ];
 

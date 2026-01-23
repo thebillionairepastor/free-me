@@ -1,5 +1,6 @@
+
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
-import { SYSTEM_INSTRUCTION_ADVISOR, SYSTEM_INSTRUCTION_TRAINER, SYSTEM_INSTRUCTION_WEEKLY_TIP, SYSTEM_INSTRUCTION_NEWS } from "../constants";
+import { SYSTEM_INSTRUCTION_ADVISOR, SYSTEM_INSTRUCTION_TRAINER, SYSTEM_INSTRUCTION_WEEKLY_TIP, SYSTEM_INSTRUCTION_NEWS, SYSTEM_INSTRUCTION_AUDIT_INTELLIGENCE } from "../constants";
 import { ChatMessage, StoredReport, KnowledgeDocument, WeeklyTip } from "../types";
 
 /**
@@ -7,10 +8,10 @@ import { ChatMessage, StoredReport, KnowledgeDocument, WeeklyTip } from "../type
  * Model Selection: 'gemini-3-flash-preview' is the definitive choice for speed.
  */
 const PRIMARY_MODEL = 'gemini-3-flash-preview';
+const PRO_MODEL = 'gemini-3-pro-preview';
 
 /**
  * Robust Retry Utility with Exponential Backoff
- * Engineered to handle RESOURCE_EXHAUSTED (429) errors typical in high-traffic free tier deployments.
  */
 async function withRetry<T>(fn: () => Promise<T>, retries = 5, delay = 5000): Promise<T> {
   try {
@@ -26,15 +27,33 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 5, delay = 5000): Pr
     if (isQuotaError && retries > 0) {
       console.warn(`[AntiRisk Vault] Intelligence link saturated. Re-establishing link in ${delay}ms... (${retries} attempts remaining)`);
       await new Promise(resolve => setTimeout(resolve, delay));
-      // Exponential backoff: increase wait time to give the API quota window time to reset
       return withRetry(fn, retries - 1, delay * 1.5); 
     }
     
-    // Log fatal errors for debugging but re-throw to be handled by the UI
     console.error("[AntiRisk Vault] Fatal Intelligence Failure:", error);
     throw error;
   }
 }
+
+/**
+ * Audit Log Intelligence Analysis
+ * Enhanced to handle Daily Patrols and 5Ws Incident Reports with prescriptive advice.
+ */
+export const analyzeReport = async (reportText: string, reportType: 'PATROL' | 'INCIDENT' | 'SHIFT' = 'SHIFT'): Promise<string> => {
+  return withRetry(async () => {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const prompt = `AUDIT TYPE: ${reportType} REPORT.\n\nCONTENT TO ANALYZE:\n${reportText}\n\nINSTRUCTIONS:\n1. Identify critical vulnerabilities and tactical gaps.\n2. Detect temporal or narrative inconsistencies (Pencil-whipping detection).\n3. IMPORTANT: Advise exactly WHAT should be done and HOW to do it using best practical acceptable practices (ISO 18788/ASIS).\n4. Format as a CEO Executive Brief.`;
+
+    const response: GenerateContentResponse = await ai.models.generateContent({
+      model: PRO_MODEL, // Use PRO for deeper reasoning and inconsistency detection
+      contents: prompt,
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION_AUDIT_INTELLIGENCE
+      }
+    });
+    return response.text || "Analysis engine recalibrating.";
+  });
+};
 
 /**
  * Real-time Security News Blog Service
@@ -44,18 +63,14 @@ export const fetchSecurityNews = async (): Promise<{ text: string; sources?: Arr
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
     const prompt = `Generate the absolute Latest CEO Security News Blog for today, ${today}.
-    Focus:
-    1. Verified real-time updates from NSCDC, NIMASA, ISO, and Global Security Trends occurring this week.
-    2. Business impact on physical security, manpower supply, and executive safety.
-    3. Exactly 10 latest items in professional Markdown with direct business implications.`;
+    Exactly 10 items. Focus on NSCDC, NIMASA, and ISO regulatory impacts.`;
 
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: PRIMARY_MODEL,
       contents: prompt,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION_NEWS,
-        tools: [{ googleSearch: {} }],
-        thinkingConfig: { thinkingBudget: 0 } // Zero latency configuration
+        tools: [{ googleSearch: {} }]
       }
     });
 
@@ -74,13 +89,13 @@ export const fetchSecurityNews = async (): Promise<{ text: string; sources?: Arr
 };
 
 /**
- * Topic Suggestion Engine - Interfaces with the 10M+ Database claim
+ * Topic Suggestion Engine
  */
 export const fetchTopicSuggestions = async (query: string): Promise<string[]> => {
   return withRetry(async () => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const prompt = `Act as the Master Security Architect. Given the query: "${query}", suggest 8 high-fidelity, hyper-specific security training topic variants that a CEO should prioritize. 
-    Focus on niche areas like industrial espionage, waybill fraud, perimeter vibrations, or maritime compliance.
+    const prompt = `Generate 6 professional, specific security training topic variants for an industrial CEO vault based on: "${query}". 
+    Focus on risk mitigation, liability reduction, and tactical guard deployment.
     Return ONLY a JSON array of strings.`;
 
     const response: GenerateContentResponse = await ai.models.generateContent({
@@ -91,51 +106,40 @@ export const fetchTopicSuggestions = async (query: string): Promise<string[]> =>
         responseSchema: {
           type: Type.ARRAY,
           items: { type: Type.STRING }
-        },
-        tools: [{ googleSearch: {} }],
-        thinkingConfig: { thinkingBudget: 0 }
+        }
       }
     });
 
     try {
       return JSON.parse(response.text || "[]");
     } catch (e) {
-      console.error("Failed to parse suggestions", e);
       return [];
     }
   });
 };
 
 /**
- * Tactical Training Module Generator - Optimized for Week 1, 2, 3 progression
+ * Tactical Training Module Generator
  */
 export const generateTrainingModule = async (topic: string, week: number = 1, role: string = "All Roles"): Promise<{ text: string; sources?: Array<{ title: string; url: string }> }> => {
   return withRetry(async () => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
-    // Define the progressive focus based on the week
     const weekFocus = {
-      1: "FUNDAMENTALS: Focus on core principles, basic observation, and standard procedures.",
-      2: "OPERATIONAL INTEGRATION: Focus on practical application, routine checks, and team coordination.",
-      3: "TACTICAL SCENARIOS: Focus on emergency response, high-stress decision making, and threat neutralization.",
-      4: "MASTERY & AUDIT: Focus on leadership, spotting subtle patterns, and continuous improvement."
+      1: "FUNDAMENTALS: Core principles and basic observation.",
+      2: "OPERATIONAL: Practical application and routine checks.",
+      3: "TACTICAL: Emergency response and decision making.",
+      4: "MASTERY: Leadership and pattern detection."
     }[week] || "GENERAL REFRESHER";
 
-    const prompt = `COMMAND: Generate a unique, high-fidelity training "vibration" for: "${topic}".
-    PROGRESSION: Week ${week} of the Tactical Curriculum.
-    FOCUS: ${weekFocus}
-    ROLE: ${role}
-    
-    Research current global industrial security standards for this topic using Google Search to ensure the brief is grounded in real-world 2025 data.
-    Include mandatory CEO/MD signature.`;
+    const prompt = `Generate a high-fidelity training "vibration" for: "${topic}". Week ${week} focus: ${weekFocus}. Role: ${role}. Include mandatory CEO/MD signature.`;
 
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: PRIMARY_MODEL,
       contents: prompt,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION_TRAINER,
-        tools: [{ googleSearch: {} }],
-        thinkingConfig: { thinkingBudget: 0 }
+        tools: [{ googleSearch: {} }]
       }
     });
 
@@ -159,14 +163,13 @@ export const generateTrainingModule = async (topic: string, week: number = 1, ro
 export const generateWeeklyTip = async (previousTips: WeeklyTip[]): Promise<string> => {
   return withRetry(async () => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const prompt = `Generate a new "Weekly Strategic Focus" directive based on current high-level risks. Use mandatory advisor signature.`;
+    const prompt = `Generate a new "Weekly Strategic Focus" directive based on current high-level risks.`;
 
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: PRIMARY_MODEL,
       contents: prompt,
       config: { 
-        systemInstruction: SYSTEM_INSTRUCTION_WEEKLY_TIP,
-        thinkingConfig: { thinkingBudget: 0 }
+        systemInstruction: SYSTEM_INSTRUCTION_WEEKLY_TIP
       }
     });
     return response.text || "Remain alert and maintain perimeter integrity.";
@@ -189,8 +192,7 @@ export const generateAdvisorResponse = async (
       contents: `CONTEXT:\n${conversationContext}\n\nCEO QUERY: ${currentMessage}`,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION_ADVISOR,
-        tools: [{ googleSearch: {} }],
-        thinkingConfig: { thinkingBudget: 0 }
+        tools: [{ googleSearch: {} }]
       }
     });
 
@@ -202,32 +204,26 @@ export const generateAdvisorResponse = async (
       })) || [];
 
     return { 
-      text: response.text || "Vault link recalibrating. Please repeat the query.",
+      text: response.text || "Vault link recalibrating.",
       sources: sources.length > 0 ? sources : undefined
     };
   });
 };
 
 /**
- * Best Practices Retrieval - Updated for Real-Time Accuracy
+ * Best Practices Retrieval
  */
 export const fetchBestPractices = async (topic?: string): Promise<{ text: string; sources?: Array<{ title: string; url: string }> }> => {
   return withRetry(async () => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-    
-    const finalTopic = topic && topic.trim() !== "" 
-      ? topic 
-      : "absolute latest physical security industrial best practices, global regulatory shifts, and emerging threats as of today, " + today;
+    const finalTopic = topic && topic.trim() !== "" ? topic : "latest physical security best practices as of " + today;
 
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: PRIMARY_MODEL,
-      contents: `Audit and Retrieve Real-Time Intelligence: "${finalTopic}". 
-      Focus on emerging risks in May 2025 and tactical compliance updates. 
-      Ensure information is current as of ${today}.`,
+      contents: `Audit Intelligence: "${finalTopic}". Focus on May 2025 updates.`,
       config: { 
-        tools: [{ googleSearch: {} }],
-        thinkingConfig: { thinkingBudget: 0 }
+        tools: [{ googleSearch: {} }]
       },
     });
 
@@ -239,26 +235,9 @@ export const fetchBestPractices = async (topic?: string): Promise<{ text: string
       })) || [];
 
     return { 
-      text: response.text || "Intelligence stream saturated. Reconnecting...",
+      text: response.text || "Intelligence stream saturated.",
       sources: sources.length > 0 ? sources : undefined
     };
-  });
-};
-
-/**
- * Dispatch Log Intelligence Analysis
- */
-export const analyzeReport = async (reportText: string, previousReports: StoredReport[] = []): Promise<string> => {
-  return withRetry(async () => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const response: GenerateContentResponse = await ai.models.generateContent({
-      model: PRIMARY_MODEL,
-      contents: `Identify patterns and vulnerabilities in this dispatch log: ${reportText}`,
-      config: {
-        thinkingConfig: { thinkingBudget: 0 }
-      }
-    });
-    return response.text || "Analysis engine currently recalibrating.";
   });
 };
 
@@ -270,13 +249,10 @@ export const analyzePatrolPatterns = async (reports: StoredReport[]): Promise<st
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const context = reports.map(r => r.content).slice(0, 10).join('\n---\n');
     const response: GenerateContentResponse = await ai.models.generateContent({
-      model: PRIMARY_MODEL,
-      contents: `Analyze these historical security reports and suggest optimized patrol routes, timing, and frequencies to address recurring vulnerabilities. Focus on high-deterrence strategies:\n\n${context}`,
-      config: {
-        thinkingConfig: { thinkingBudget: 0 }
-      }
+      model: PRO_MODEL,
+      contents: `Analyze these reports and suggest optimized routes:\n\n${context}`
     });
-    return response.text || "Patrol optimization engine currently recalibrating.";
+    return response.text || "Patrol engine recalibrating.";
   });
 };
 
@@ -289,10 +265,7 @@ export const getTrainingSuggestions = async (recentReports: StoredReport[]): Pro
     const context = recentReports.map(r => `- ${r.content}`).join('\n');
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: PRIMARY_MODEL,
-      contents: `Suggest 3 training topics based on these incidents, separated by |||:\n${context}`,
-      config: {
-        thinkingConfig: { thinkingBudget: 0 }
-      }
+      contents: `Suggest 3 training topics based on these incidents, separated by |||:\n${context}`
     });
     return (response.text || "").split('|||').map(t => t.trim());
   });
