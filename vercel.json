@@ -1,1 +1,1 @@
-{\n  \"build\": {\n    \"env\": {\n      \"NODE_ENV\": \"production\"\n    },\n    \"output\": \"dist\"\n  },\n  \"output\": {\n    \"static\": \"dist\",\n    \"artifact\": \"dist\"\n  }\n}
+
