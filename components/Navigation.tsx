@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View } from '../types';
-import { LayoutDashboard, ShieldAlert, Globe, BookOpen, FileText, Briefcase, Lightbulb, Settings, X, User, Newspaper } from 'lucide-react';
+import { LayoutDashboard, ShieldAlert, Globe, BookOpen, FileText, Briefcase, Lightbulb, Settings, X, User, Newspaper, Wifi, WifiOff } from 'lucide-react';
 
 interface NavigationProps {
   currentView: View;
@@ -30,6 +30,18 @@ const Navigation: React.FC<NavigationProps> = ({
   onOpenSettings,
   bestPracticesBadge = 0
 }) => {
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const updateStatus = () => setIsOnline(navigator.onLine);
+    window.addEventListener('online', updateStatus);
+    window.addEventListener('offline', updateStatus);
+    return () => {
+      window.removeEventListener('online', updateStatus);
+      window.removeEventListener('offline', updateStatus);
+    };
+  }, []);
+
   const navItems = [
     { id: View.DASHBOARD, label: 'Dashboard', icon: LayoutDashboard },
     { id: View.NEWS_BLOG, label: 'Security News', icon: Newspaper },
@@ -40,7 +52,7 @@ const Navigation: React.FC<NavigationProps> = ({
     { id: View.TOOLKIT, label: 'Ops Vault', icon: Briefcase },
   ];
 
-  const baseClasses = "fixed inset-y-0 left-0 z-[100] w-[85vw] sm:w-72 bg-[#0a0f1a] border-r border-slate-800/40 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 shadow-2xl lg:shadow-none";
+  const baseClasses = "fixed inset-y-0 left-0 z-[100] w-[85vw] sm:w-72 bg-[#0a0f1a] border-r border-slate-800/40 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 shadow-2xl lg:shadow-none safe-top";
   const mobileClasses = isMobileMenuOpen ? "translate-x-0" : "-translate-x-full";
 
   return (
@@ -102,7 +114,7 @@ const Navigation: React.FC<NavigationProps> = ({
             })}
           </nav>
 
-          <div className="p-6 sm:p-8 border-t border-slate-800/40 space-y-4 sm:space-y-6">
+          <div className="p-6 sm:p-8 border-t border-slate-800/40 space-y-4 sm:space-y-6 safe-bottom">
             <button 
               onClick={() => { onOpenSettings(); closeMobileMenu(); }}
               className="w-full flex items-center gap-4 sm:gap-5 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl text-slate-400 hover:bg-slate-900/50 hover:text-white transition-all active:scale-[0.97]"
@@ -112,9 +124,14 @@ const Navigation: React.FC<NavigationProps> = ({
             </button>
             <div className="bg-slate-900/30 rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-800/40 hidden sm:block">
               <h4 className="text-[9px] font-black text-slate-600 uppercase mb-3 tracking-[0.2em]">System Status</h4>
-              <div className="flex items-center gap-3">
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                <span className="text-[10px] sm:text-xs font-bold text-slate-300 uppercase">Vault Active</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+                  <span className="text-[10px] sm:text-xs font-bold text-slate-300 uppercase">
+                    {isOnline ? 'Vault Linked' : 'Offline Vault'}
+                  </span>
+                </div>
+                {isOnline ? <Wifi size={14} className="text-slate-500" /> : <WifiOff size={14} className="text-red-500" />}
               </div>
             </div>
           </div>

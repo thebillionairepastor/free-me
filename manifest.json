@@ -1,0 +1,17 @@
+{
+  "name": "AntiRisk CEO Security Advisory",
+  "short_name": "AntiRisk",
+  "description": "Executive Security Command & AI Advisory platform.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0f1a",
+  "theme_color": "#0a0f1a",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1063/1063376.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

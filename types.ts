@@ -1,5 +1,4 @@
 
-
 export enum View {
   DASHBOARD = 'DASHBOARD',
   ADVISOR = 'ADVISOR',
@@ -30,6 +29,14 @@ export interface ChatMessage {
   isError?: boolean;
   sources?: Array<{ title: string; url: string }>;
   isPinned?: boolean;
+}
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  messages: ChatMessage[];
+  lastTimestamp: number;
+  dateStr: string;
 }
 
 export interface BestPracticeItem {

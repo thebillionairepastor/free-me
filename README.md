@@ -1,20 +1,48 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# AntiRisk | CEO Security Advisory Platform
 
-# Run and deploy your AI Studio app
+**AntiRisk** is a high-fidelity, AI-powered command center designed for CEOs and Managing Directors of security manpower firms. It integrates global security standards (ISO 18788, ASIS) with advanced Gemini AI to provide strategic oversight, operational intelligence, and training automation.
 
-This contains everything you need to run your app locally.
+## 🛡️ Core Modules
 
-View your app in AI Studio: https://ai.studio/apps/drive/1PcYxMK0jb80OOxj21qD7m3p8-bWInkrV
+- **AI Executive Advisor**: A direct line to a strategic security consultant trained on global and regional (Nigeria/West Africa) risk landscapes.
+- **Intel Engine (Training Builder)**: Access to a repository of over 10-million training "vibrations"—unique, role-specific tactical briefings.
+- **Ops Vault**: A secure repository for tactical SOPs and AI-driven Risk Audit of guard logs and incident reports.
+- **CEO News Blog**: Real-time regulatory updates from NSCDC, NIMASA, and ISO boards.
+- **Offline-First Vault**: Progressive Web App (PWA) architecture ensuring access to critical protocols even in zero-connectivity environments.
 
-## Run Locally
+## 🚀 Deployment
 
-**Prerequisites:**  Node.js
+The application is optimized for deployment on **Netlify**.
 
+### 1. Environment Configuration
+You MUST set the following environment variable in your Netlify site settings:
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+| Key | Value |
+| :--- | :--- |
+| `API_KEY` | Your Google Gemini API Key |
+
+### 2. Deployment Steps
+1. Push this repository to GitHub.
+2. Connect the repository to **Netlify**.
+3. Netlify will automatically detect the settings from `netlify.toml`.
+4. Ensure the build command is `npm run build` and the output directory is `dist`.
+5. Add the `API_KEY` variable in the **Site settings > Build & deploy > Environment** section.
+
+## 🔒 Security Architecture
+
+- **PIN-Protected Vault**: Security-first access control for executive data.
+- **Offline Intelligence**: Local caching of "Ops Vault" intelligence for zero-latency access during field operations.
+- **Data Privacy**: All AI consultations are session-based; internal policies are injected as context locally.
+
+## 🛠️ Tech Stack
+
+- **Framework**: React 19 (ESM)
+- **AI**: Google Gemini API (@google/genai)
+- **Styling**: Tailwind CSS
+- **Icons**: Lucide React
+- **Build Tool**: Vite 6.0
+- **Hosting**: Netlify (Edge Functions & Optimized Headers)
+
+---
+**AntiRisk Management**
+*Empowering Security Leadership with High-Fidelity Intelligence.*
